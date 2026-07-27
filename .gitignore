@@ -1,0 +1,30 @@
+# .NET and MAUI build output
+**/bin/
+**/obj/
+artifacts/
+
+# Local Android tooling
+.android-sdk/
+*.keystore
+*.jks
+
+# IDE and user state
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Runtime configuration and secrets
+*.pfx
+*.p12
+*.pem
+*.key
+*.log
+*.tmp
+*.part
+
+# OS metadata
+Thumbs.db
+Desktop.ini
+.DS_Store

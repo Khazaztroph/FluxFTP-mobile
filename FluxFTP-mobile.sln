@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{890537AC-308B-429E-BCA6-24F781DE6BC6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IoFtp.Core", "src\IoFtp.Core\IoFtp.Core.csproj", "{FE54387D-3F2D-46D0-9716-B55843B1B377}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IoFtp.Mobile", "src\IoFtp.Mobile\IoFtp.Mobile.csproj", "{4AD8740A-A2FC-4A94-905C-681F35DE7186}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FE54387D-3F2D-46D0-9716-B55843B1B377}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FE54387D-3F2D-46D0-9716-B55843B1B377}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FE54387D-3F2D-46D0-9716-B55843B1B377}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FE54387D-3F2D-46D0-9716-B55843B1B377}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4AD8740A-A2FC-4A94-905C-681F35DE7186}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4AD8740A-A2FC-4A94-905C-681F35DE7186}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4AD8740A-A2FC-4A94-905C-681F35DE7186}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4AD8740A-A2FC-4A94-905C-681F35DE7186}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{FE54387D-3F2D-46D0-9716-B55843B1B377} = {890537AC-308B-429E-BCA6-24F781DE6BC6}
+		{4AD8740A-A2FC-4A94-905C-681F35DE7186} = {890537AC-308B-429E-BCA6-24F781DE6BC6}
+	EndGlobalSection
+EndGlobal

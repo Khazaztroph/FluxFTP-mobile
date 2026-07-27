@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="IoFtp.Mobile.MainPage"
+             Title="FluxFTP">
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Padding="12" RowSpacing="8">
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+            <Picker x:Name="SitePicker" Title="Välj site" ItemDisplayBinding="{Binding Name}"
+                    SelectedIndexChanged="OnSiteSelected" />
+            <Button Grid.Column="1" Text="Sites" Clicked="OnManageSites" />
+            <Button Grid.Column="2" x:Name="ConnectButton" Text="Anslut" Clicked="OnConnect" />
+        </Grid>
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+            <Entry x:Name="RemotePath" Text="/" Placeholder="Fjärrmapp" ReturnType="Go"
+                   Completed="OnRemotePathCompleted" />
+            <Button Grid.Column="1" Text="Upp" Clicked="OnRemoteUp" />
+            <Button Grid.Column="2" Text="Öppna" Clicked="OnOpenRemote" />
+        </Grid>
+        <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="8">
+            <Grid RowDefinitions="Auto,*">
+                <Grid ColumnDefinitions="*,Auto,Auto">
+                    <Label Text="LOKALT" FontAttributes="Bold" VerticalOptions="Center" />
+                    <Button Grid.Column="1" Text="Välj filer" Clicked="OnPickFiles" />
+                    <Button Grid.Column="2" Text="Välj mapp" Clicked="OnPickFolder" />
+                </Grid>
+                <CollectionView Grid.Row="1" x:Name="LocalFiles" SelectionMode="Multiple">
+                    <CollectionView.EmptyView>
+                        <Label Text="Välj filer för uppladdning." Padding="8" TextColor="Gray" />
+                    </CollectionView.EmptyView>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <VerticalStackLayout Padding="7" Spacing="1">
+                                <Label Text="{Binding FileName}" LineBreakMode="TailTruncation" />
+                                <Label Text="{Binding DisplayPath}" FontSize="10" TextColor="Gray"
+                                       LineBreakMode="TailTruncation" />
+                            </VerticalStackLayout>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Grid>
+            <Grid Grid.Column="1" RowDefinitions="Auto,*">
+                <Label Text="FJÄRRSERVER" FontAttributes="Bold" Padding="0,12" />
+                <CollectionView Grid.Row="1" x:Name="RemoteFiles" SelectionMode="Multiple">
+                    <CollectionView.EmptyView>
+                        <Label Text="Anslut för att visa filer." Padding="8" TextColor="Gray" />
+                    </CollectionView.EmptyView>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Padding="7" ColumnDefinitions="Auto,*" ColumnSpacing="5">
+                                <Label Text="{Binding Icon}" />
+                                <VerticalStackLayout Grid.Column="1" Spacing="1">
+                                    <Label Text="{Binding Name}" LineBreakMode="TailTruncation" />
+                                    <Label Text="{Binding SizeText}" FontSize="10" TextColor="Gray" />
+                                </VerticalStackLayout>
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Grid>
+        </Grid>
+        <Grid Grid.Row="3" RowDefinitions="Auto,Auto" ColumnDefinitions="*,*" ColumnSpacing="6">
+            <Button Text="Ladda upp →" Clicked="OnUpload" />
+            <Button Grid.Column="1" Text="← Ladda ner" Clicked="OnDownload" />
+            <ProgressBar Grid.Row="1" Grid.ColumnSpan="2" x:Name="TransferProgress" Margin="0,6,0,0" />
+        </Grid>
+    </Grid>
+</ContentPage>
