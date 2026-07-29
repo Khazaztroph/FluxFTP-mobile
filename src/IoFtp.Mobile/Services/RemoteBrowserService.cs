@@ -8,6 +8,7 @@ namespace IoFtp.Mobile.Services;
 public sealed class RemoteBrowserService : IAsyncDisposable
 {
     private IRemoteSession? _session;
+    private ConnectionProfile? _profile;
 
     public async Task ConnectAsync(ConnectionProfile profile, CancellationToken token)
     {
@@ -18,12 +19,18 @@ public sealed class RemoteBrowserService : IAsyncDisposable
             _ => new FtpRemoteSession()
         };
         await _session.ConnectAsync(profile, token);
+        _profile = profile;
     }
+
+    public Task ReconnectAsync(CancellationToken token) =>
+        ConnectAsync(_profile ?? throw new InvalidOperationException("Ingen site har anslutits ännu."), token);
 
     public Task<IReadOnlyList<RemoteEntry>> ListAsync(string path, CancellationToken token) =>
         Session().ListAsync(path, token);
-    public Task UploadAsync(string path, Stream source, IProgress<long>? progress, CancellationToken token) =>
-        Session().UploadAsync(path, source, 0, progress, token);
+    public Task UploadAsync(string path, Stream source, long offset, IProgress<long>? progress, CancellationToken token) =>
+        Session().UploadAsync(path, source, offset, progress, token);
+    public Task<long?> GetSizeAsync(string path, CancellationToken token) =>
+        Session().GetSizeAsync(path, token);
     public Task DownloadAsync(string path, Stream destination, IProgress<long>? progress, CancellationToken token) =>
         Session().DownloadAsync(path, destination, 0, progress, token);
     public async Task CreateDirectoryAsync(string path, CancellationToken token)

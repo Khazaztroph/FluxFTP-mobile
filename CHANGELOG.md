@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.0 — 2026-07-29
+
+- Replaced the wide site picker with a compact `Sites` action button.
+- Added persistent single-pane and dual-pane modes.
+- Made the remote file browser full width in single-pane mode on small screens.
+- Preserved the selected site and view mode between launches.
+- Ported the relevant FluxFTP 1.0.19-era FTP listing fix.
+- Added reconnect and resume handling for interrupted uploads.
+
 ## 1.2.0 — 2026-07-27
 
 Initial public Android release.

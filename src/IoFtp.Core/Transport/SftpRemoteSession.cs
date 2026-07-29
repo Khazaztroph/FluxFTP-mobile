@@ -106,6 +106,15 @@ public sealed class SftpRemoteSession : IRemoteSession
         await CopyWithProgressAsync(source, destination, offset, progress, cancellationToken);
     }
 
+    public Task<long?> GetSizeAsync(string remotePath, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var client = Client();
+        return Task.FromResult(client.Exists(remotePath)
+            ? (long?)client.GetAttributes(remotePath).Size
+            : null);
+    }
+
     public Task<RemoteCommandResult> ExecuteCommandAsync(
         string command, CancellationToken cancellationToken)
     {
