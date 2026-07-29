@@ -3,10 +3,23 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="IoFtp.Mobile.MainPage"
              Title="FluxFTP">
+    <NavigationPage.TitleView>
+        <HorizontalStackLayout Spacing="0" VerticalOptions="Center">
+            <Label Text="Flux"
+                   TextColor="{StaticResource AccentColor}"
+                   FontAttributes="Bold"
+                   FontSize="20" />
+            <Label Text="FTP"
+                   TextColor="{StaticResource TextColor}"
+                   FontAttributes="Bold"
+                   FontSize="20" />
+        </HorizontalStackLayout>
+    </NavigationPage.TitleView>
     <Grid RowDefinitions="Auto,Auto,*,Auto" Padding="8" RowSpacing="6">
         <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="5">
             <Button x:Name="SiteButton"
                     Text="Sites"
+                    TextColor="{StaticResource AccentColor}"
                     Padding="10,7"
                     FontSize="13"
                     Clicked="OnChooseSite" />
@@ -35,7 +48,7 @@
             <Label Text="Server"
                    FontSize="11"
                    VerticalOptions="Center"
-                   TextColor="Gray" />
+                   TextColor="{StaticResource MutedTextColor}" />
             <Entry Grid.Column="1"
                    x:Name="RemotePath"
                    Text="/"
@@ -93,7 +106,7 @@
                                        LineBreakMode="TailTruncation" />
                                 <Label Text="{Binding DisplayPath}"
                                        FontSize="9"
-                                       TextColor="Gray"
+                                       TextColor="{StaticResource MutedTextColor}"
                                        LineBreakMode="TailTruncation" />
                             </VerticalStackLayout>
                         </DataTemplate>
@@ -113,7 +126,7 @@
                            x:Name="ViewModeLabel"
                            Text="SINGEL"
                            FontSize="10"
-                           TextColor="Gray"
+                           TextColor="{StaticResource MutedTextColor}"
                            VerticalOptions="Center" />
                 </Grid>
                 <CollectionView Grid.Row="1"
@@ -123,7 +136,7 @@
                         <Label Text="Välj en site och anslut för att visa serverns filer."
                                Padding="8"
                                FontSize="12"
-                               TextColor="Gray" />
+                               TextColor="{StaticResource MutedTextColor}" />
                     </CollectionView.EmptyView>
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
@@ -141,7 +154,7 @@
                                 <Label Grid.Column="2"
                                        Text="{Binding SizeText}"
                                        FontSize="10"
-                                       TextColor="Gray"
+                                       TextColor="{StaticResource MutedTextColor}"
                                        VerticalOptions="Center" />
                             </Grid>
                         </DataTemplate>
