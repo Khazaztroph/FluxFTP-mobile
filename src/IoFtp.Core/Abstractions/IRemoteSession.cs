@@ -11,6 +11,7 @@ public interface IRemoteSession : IAsyncDisposable
     Task<IReadOnlyList<RemoteEntry>> ListAsync(string path, CancellationToken cancellationToken);
     Task DownloadAsync(string remotePath, Stream destination, long offset, IProgress<long>? progress, CancellationToken cancellationToken);
     Task UploadAsync(string remotePath, Stream source, long offset, IProgress<long>? progress, CancellationToken cancellationToken);
+    Task<long?> GetSizeAsync(string remotePath, CancellationToken cancellationToken);
     Task<RemoteCommandResult> ExecuteCommandAsync(string command, CancellationToken cancellationToken);
     Task DisconnectAsync(CancellationToken cancellationToken);
 }

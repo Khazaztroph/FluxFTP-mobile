@@ -9,11 +9,16 @@ namespace IoFtp.Mobile;
 
 public partial class MainPage : ContentPage
 {
+    private const string SelectedSitePreference = "fluxftp.selected-site.v1";
+    private const string DualViewPreference = "fluxftp.dual-view.v1";
     private readonly SiteStore _sites;
     private readonly RemoteBrowserService _remote;
     private readonly ObservableCollection<LocalTransferFile> _localFiles = [];
     private readonly ObservableCollection<RemoteEntryView> _remoteFiles = [];
+    private IReadOnlyList<ConnectionProfile> _profiles = [];
+    private ConnectionProfile? _selectedProfile;
     private CancellationTokenSource? _operation;
+    private bool _dualView;
 
     public MainPage()
     {
@@ -22,26 +27,77 @@ public partial class MainPage : ContentPage
         _remote = new RemoteBrowserService();
         LocalFiles.ItemsSource = _localFiles;
         RemoteFiles.ItemsSource = _remoteFiles;
+        _dualView = Preferences.Default.Get(DualViewPreference, false);
+        ApplyViewMode();
     }
 
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        var selectedId = (SitePicker.SelectedItem as ConnectionProfile)?.Id;
-        var profiles = (await _sites.LoadAsync()).ToList();
-        SitePicker.ItemsSource = profiles;
-        SitePicker.SelectedItem = profiles.FirstOrDefault(x => x.Id == selectedId) ?? profiles.FirstOrDefault();
+        var selectedId = _selectedProfile?.Id;
+        if (selectedId is null &&
+            Guid.TryParse(Preferences.Default.Get(SelectedSitePreference, ""), out var storedId))
+            selectedId = storedId;
+        _profiles = await _sites.LoadAsync();
+        _selectedProfile = _profiles.FirstOrDefault(site => site.Id == selectedId) ??
+            _profiles.FirstOrDefault();
+        UpdateSelectedSite();
     }
 
-    private async void OnManageSites(object sender, EventArgs e) =>
-        await Navigation.PushAsync(new SiteManagerPage(_sites));
+    private async void OnChooseSite(object sender, EventArgs e)
+    {
+        _profiles = await _sites.LoadAsync();
+        var manage = "Hantera sites…";
+        if (_profiles.Count == 0)
+        {
+            await Navigation.PushAsync(new SiteManagerPage(_sites));
+            return;
+        }
+        var choices = _profiles.Select(site => site.Name).Append(manage).ToArray();
+        var selected = await DisplayActionSheet("Välj site", "Avbryt", null, choices);
+        if (selected == manage)
+        {
+            await Navigation.PushAsync(new SiteManagerPage(_sites));
+            return;
+        }
+        var profile = _profiles.FirstOrDefault(site =>
+            site.Name.Equals(selected, StringComparison.Ordinal));
+        if (profile is null) return;
+        _selectedProfile = profile;
+        Preferences.Default.Set(SelectedSitePreference, profile.Id.ToString());
+        UpdateSelectedSite();
+    }
 
-    private void OnSiteSelected(object sender, EventArgs e) =>
-        ConnectButton.IsEnabled = SitePicker.SelectedItem is ConnectionProfile;
+    private void OnToggleViewMode(object sender, EventArgs e)
+    {
+        _dualView = !_dualView;
+        Preferences.Default.Set(DualViewPreference, _dualView);
+        ApplyViewMode();
+    }
+
+    private void ApplyViewMode()
+    {
+        if (PaneGrid is null) return;
+        LocalPane.IsVisible = _dualView;
+        PaneGrid.ColumnDefinitions[0].Width = _dualView
+            ? new GridLength(1, GridUnitType.Star)
+            : new GridLength(0);
+        PaneGrid.ColumnDefinitions[1].Width = new GridLength(1, GridUnitType.Star);
+        Grid.SetColumn(RemotePane, _dualView ? 1 : 0);
+        Grid.SetColumnSpan(RemotePane, _dualView ? 1 : 2);
+        ViewModeButton.Text = _dualView ? "Singelvy" : "Dualvy";
+        ViewModeLabel.Text = _dualView ? "DUAL" : "SINGEL";
+    }
+
+    private void UpdateSelectedSite()
+    {
+        SelectedSiteLabel.Text = _selectedProfile?.Name ?? "Ingen site vald";
+        ConnectButton.IsEnabled = _selectedProfile is not null;
+    }
 
     private async void OnConnect(object sender, EventArgs e)
     {
-        if (SitePicker.SelectedItem is not ConnectionProfile profile) return;
+        if (_selectedProfile is not { } profile) return;
         await RunAsync(async token =>
         {
             var connectedProfile = profile;
@@ -134,8 +190,7 @@ public partial class MainPage : ContentPage
             {
                 var destination = CombineRemote(RemotePath.Text, file.RelativePath);
                 await EnsureRemoteDirectoriesAsync(RemoteParent(destination), createdDirectories, token);
-                await using var source = await file.OpenReadAsync();
-                await _remote.UploadAsync(destination, source, Progress(file.Size), token);
+                await UploadWithRecoveryAsync(file, destination, token);
             }
             await RefreshRemoteAsync(token);
             LocalFiles.SelectedItems.Clear();
@@ -183,6 +238,60 @@ public partial class MainPage : ContentPage
 
     private IProgress<long> Progress(long total) => new Progress<long>(bytes =>
         TransferProgress.Progress = total > 0 ? Math.Clamp((double)bytes / total, 0, 1) : 0);
+
+    private async Task UploadWithRecoveryAsync(
+        LocalTransferFile file, string destination, CancellationToken token)
+    {
+        const int maximumAttempts = 3;
+        long offset = 0;
+
+        for (var attempt = 1; attempt <= maximumAttempts; attempt++)
+        {
+            long bytesReported = offset;
+            var progress = new InlineProgress<long>(bytes =>
+            {
+                bytesReported = bytes;
+                TransferProgress.Progress = file.Size > 0
+                    ? Math.Clamp((double)bytes / file.Size, 0, 1)
+                    : 0;
+            });
+
+            try
+            {
+                await using var source = await file.OpenReadAsync();
+                if (offset > 0)
+                {
+                    if (!source.CanSeek)
+                    {
+                        offset = 0;
+                    }
+                    else
+                    {
+                        source.Seek(offset, SeekOrigin.Begin);
+                    }
+                }
+                await _remote.UploadAsync(destination, source, offset, progress, token);
+                return;
+            }
+            catch (Exception exception) when (
+                attempt < maximumAttempts &&
+                exception is IOException or FtpCommandException)
+            {
+                await _remote.ReconnectAsync(token);
+                var remoteSize = await _remote.GetSizeAsync(destination, token);
+
+                // SIZE alone is not enough: ioFTPD can preallocate the complete
+                // file before all bytes arrive. Only accept it as completed when
+                // this attempt actually reported that every source byte was sent.
+                if (remoteSize == file.Size && bytesReported >= file.Size)
+                    return;
+
+                offset = remoteSize is > 0 && remoteSize < file.Size
+                    ? remoteSize.Value
+                    : 0;
+            }
+        }
+    }
 
     private async Task RunAsync(Func<CancellationToken, Task> action, string? success = null)
     {
@@ -253,4 +362,9 @@ public sealed class RemoteEntryView(IoFtp.Core.Abstractions.RemoteEntry entry)
     public long? Size { get; } = entry.Size;
     public string Icon => IsDirectory ? "📁" : "📄";
     public string SizeText => IsDirectory ? "Mapp" : Size is long value ? $"{value:N0} byte" : "Fil";
+}
+
+internal sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
+{
+    public void Report(T value) => report(value);
 }
