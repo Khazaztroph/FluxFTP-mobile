@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.1 — 2026-07-29
+
+- Matched the Android interface to the FluxFTP desktop color palette.
+- Replaced the purple MAUI styling with FluxFTP dark blue, teal and cyan colors.
+- Added the FluxFTP wordmark to the mobile navigation bar.
+- Reworked the Android launcher icon and splash screen to use the FluxFTP server identity.
+- Applied the new identity to buttons, lists, forms, progress indicators and Android system chrome.
+
 ## 1.3.0 — 2026-07-29
 
 - Replaced the wide site picker with a compact `Sites` action button.
