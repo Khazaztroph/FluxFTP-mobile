@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0 — 2026-07-30
+
+- Added the FluxFTP 1.0.25-compatible `Broken PASV` site option.
+- Broken PASV sites use PORT/active FTP immediately for listings, uploads and downloads.
+- Confirmed SFTP browsing and transfers through SSH.NET, including saved SHA256 host-key verification.
+- Kept Broken PASV isolated from SFTP sites.
+
 ## 1.3.1 — 2026-07-29
 
 - Matched the Android interface to the FluxFTP desktop color palette.

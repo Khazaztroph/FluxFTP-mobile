@@ -6,6 +6,7 @@ namespace IoFtp.Mobile;
 public sealed class SiteEditorPage : ContentPage
 {
     private readonly Guid _id;
+    private readonly SiteOptions _originalOptions;
     private readonly Entry _name = new() { Placeholder = "Namn" };
     private readonly Picker _protocol = new() { Title = "Protokoll" };
     private readonly Entry _host = new() { Placeholder = "Server" };
@@ -15,12 +16,14 @@ public sealed class SiteEditorPage : ContentPage
     private readonly Entry _startPath = new() { Placeholder = "Startmapp", Text = "/" };
     private readonly Entry _hostKey = new() { Placeholder = "SSH host key (SHA256), valfritt" };
     private readonly Switch _invalidCertificate = new();
+    private readonly Switch _brokenPasv = new();
 
     public event Func<ConnectionProfile, Task>? Saved;
 
     public SiteEditorPage(ConnectionProfile? profile)
     {
         _id = profile?.Id ?? Guid.NewGuid();
+        _originalOptions = profile?.EffectiveOptions ?? new SiteOptions();
         Title = profile is null ? "Ny site" : "Redigera site";
         _protocol.ItemsSource = Enum.GetValues<TransferProtocol>().Select(TransferProtocolNames.Display).ToList();
         if (profile is not null)
@@ -34,6 +37,7 @@ public sealed class SiteEditorPage : ContentPage
             _startPath.Text = profile.EffectiveOptions.BasePath;
             _hostKey.Text = profile.SshHostKeyFingerprint;
             _invalidCertificate.IsToggled = profile.AllowInvalidCertificate;
+            _brokenPasv.IsToggled = profile.EffectiveOptions.BrokenPasv;
         }
         else
         {
@@ -78,6 +82,24 @@ public sealed class SiteEditorPage : ContentPage
                         TextColor = Colors.OrangeRed,
                         FontSize = 12
                     },
+                    new HorizontalStackLayout
+                    {
+                        Children =
+                        {
+                            new Label
+                            {
+                                Text = "Broken PASV (använd PORT/aktiv FTP direkt)",
+                                VerticalOptions = LayoutOptions.Center
+                            },
+                            _brokenPasv
+                        }
+                    },
+                    new Label
+                    {
+                        Text = "Använd endast för FTP/FTPS-servrar där EPSV/PASV inte fungerar. Inställningen påverkar inte SFTP.",
+                        TextColor = Color.FromArgb("#91A2B1"),
+                        FontSize = 12
+                    },
                     save
                 }
             }
@@ -93,11 +115,15 @@ public sealed class SiteEditorPage : ContentPage
             return;
         }
         var protocol = (TransferProtocol)Math.Max(0, _protocol.SelectedIndex);
+        var options = _originalOptions with
+        {
+            BasePath = string.IsNullOrWhiteSpace(_startPath.Text) ? "/" : _startPath.Text.Trim(),
+            BrokenPasv = protocol != TransferProtocol.Sftp && _brokenPasv.IsToggled
+        };
         var profile = new ConnectionProfile(
             _id, _name.Text.Trim(), _host.Text.Trim(), port, _username.Text?.Trim() ?? "",
             protocol, _password.Text ?? "", _invalidCertificate.IsToggled,
-            Options: new SiteOptions(
-                BasePath: string.IsNullOrWhiteSpace(_startPath.Text) ? "/" : _startPath.Text.Trim()),
+            Options: options,
             SshHostKeyFingerprint: _hostKey.Text?.Trim() ?? "");
         if (Saved is not null) await Saved(profile);
     }
