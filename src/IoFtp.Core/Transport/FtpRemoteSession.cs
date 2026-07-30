@@ -304,6 +304,12 @@ public sealed class FtpRemoteSession : IRemoteSession
                 throw new FtpCommandException(stat.Code, stat.Message);
         }
 
+        // FluxFTP 1.0.25-compatible Broken PASV behavior. A marked site is
+        // placed in the PORT/active role immediately rather than waiting for
+        // EPSV/PASV to fail or time out first.
+        if (_profile!.EffectiveOptions.BrokenPasv)
+            return await ListActiveAsync(path, command, parser, cancellationToken);
+
         await PrepareDataCommandAsync($"{command} {path}", cancellationToken);
         var endpoint = await OpenPassiveEndpointAsync(cancellationToken);
 
@@ -419,6 +425,12 @@ public sealed class FtpRemoteSession : IRemoteSession
     private async Task TransferAsync(string command, long offset, Func<Stream, Task> transfer, CancellationToken cancellationToken)
     {
         EnsureConnected();
+        if (_profile!.EffectiveOptions.BrokenPasv)
+        {
+            await TransferActiveAsync(command, offset, transfer, cancellationToken);
+            return;
+        }
+
         TcpClient? dataClient = null;
         try
         {
