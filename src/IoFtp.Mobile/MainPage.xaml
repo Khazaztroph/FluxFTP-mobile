@@ -15,7 +15,7 @@
                    FontSize="20" />
         </HorizontalStackLayout>
     </NavigationPage.TitleView>
-    <Grid RowDefinitions="Auto,Auto,*,Auto" Padding="8" RowSpacing="6">
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Padding="8" RowSpacing="6">
         <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="5">
             <Button x:Name="SiteButton"
                     Text="Sites"
@@ -164,7 +164,6 @@
         </Grid>
 
         <Grid Grid.Row="3"
-              RowDefinitions="Auto,Auto"
               ColumnDefinitions="*,*"
               ColumnSpacing="6">
             <Button Text="Ladda upp →"
@@ -176,10 +175,40 @@
                     Padding="10,7"
                     FontSize="12"
                     Clicked="OnDownload" />
-            <ProgressBar Grid.Row="1"
-                         Grid.ColumnSpan="2"
-                         x:Name="TransferProgress"
-                         Margin="0,4,0,0" />
         </Grid>
+        <Border Grid.Row="4"
+                BackgroundColor="{StaticResource SurfaceRaisedColor}"
+                Stroke="{StaticResource BorderColor}"
+                StrokeThickness="1"
+                Padding="8,5">
+            <Grid RowDefinitions="Auto,Auto"
+                  ColumnDefinitions="Auto,*,Auto"
+                  ColumnSpacing="7"
+                  RowSpacing="4">
+                <ActivityIndicator x:Name="StatusActivity"
+                                   WidthRequest="16"
+                                   HeightRequest="16"
+                                   IsRunning="False"
+                                   VerticalOptions="Center" />
+                <Label Grid.Column="1"
+                       x:Name="StatusText"
+                       Text="Inte ansluten"
+                       FontSize="10"
+                       LineBreakMode="TailTruncation"
+                       VerticalOptions="Center" />
+                <Label Grid.Column="2"
+                       x:Name="SpeedText"
+                       Text="0 B/s"
+                       FontSize="10"
+                       FontAttributes="Bold"
+                       TextColor="{StaticResource AccentColor}"
+                       VerticalOptions="Center" />
+                <ProgressBar Grid.Row="1"
+                             Grid.ColumnSpan="3"
+                             x:Name="TransferProgress"
+                             HeightRequest="4"
+                             Progress="0" />
+            </Grid>
+        </Border>
     </Grid>
 </ContentPage>

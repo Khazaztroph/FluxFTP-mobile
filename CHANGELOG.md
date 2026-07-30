@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.0 — 2026-07-30
+
+- Ported the relevant live-throughput behavior from FluxFTP 1.0.26.
+- Added live speed calculated from the actual FTP/SFTP byte stream.
+- Added a compact bottom status bar for connection state, current activity, bytes, percentage and speed.
+- Added an activity indicator while connecting, listing and transferring.
+
 ## 1.4.0 — 2026-07-30
 
 - Added the FluxFTP 1.0.25-compatible `Broken PASV` site option.

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO.Compression;
 using IoFtp.Core.Models;
 using IoFtp.Mobile.Services;
@@ -19,6 +20,9 @@ public partial class MainPage : ContentPage
     private ConnectionProfile? _selectedProfile;
     private CancellationTokenSource? _operation;
     private bool _dualView;
+    private bool _connected;
+    private readonly Stopwatch _transferTimer = new();
+    private long _transferStartBytes;
 
     public MainPage()
     {
@@ -123,6 +127,7 @@ public partial class MainPage : ContentPage
             RemotePath.Text = connectedProfile.EffectiveOptions.BasePath;
             await RefreshRemoteAsync(token);
             ConnectButton.Text = "Återanslut";
+            _connected = true;
         }, $"Ansluten till {profile.Name}");
     }
 
@@ -212,7 +217,8 @@ public partial class MainPage : ContentPage
                 var file = entries[0];
                 var output = Path.Combine(FileSystem.CacheDirectory, file.Name);
                 await using (var destination = File.Create(output))
-                    await _remote.DownloadAsync(file.FullPath, destination, Progress(file.Size ?? 0), token);
+                    await _remote.DownloadAsync(file.FullPath, destination,
+                        Progress(file.Size ?? 0, $"Laddar ner {file.Name}"), token);
                 await Share.Default.RequestAsync(new ShareFileRequest(
                     "Spara eller dela den nedladdade filen", new ShareFile(output)));
                 return;
@@ -236,14 +242,18 @@ public partial class MainPage : ContentPage
             _remoteFiles.Add(new RemoteEntryView(entry));
     }
 
-    private IProgress<long> Progress(long total) => new Progress<long>(bytes =>
-        TransferProgress.Progress = total > 0 ? Math.Clamp((double)bytes / total, 0, 1) : 0);
+    private IProgress<long> Progress(long total, string activity)
+    {
+        BeginTransfer(0, activity);
+        return new Progress<long>(bytes => ReportTransferProgress(bytes, total, activity));
+    }
 
     private async Task UploadWithRecoveryAsync(
         LocalTransferFile file, string destination, CancellationToken token)
     {
         const int maximumAttempts = 3;
         long offset = 0;
+        var activity = $"Laddar upp {file.FileName}";
 
         for (var attempt = 1; attempt <= maximumAttempts; attempt++)
         {
@@ -251,9 +261,7 @@ public partial class MainPage : ContentPage
             var progress = new InlineProgress<long>(bytes =>
             {
                 bytesReported = bytes;
-                TransferProgress.Progress = file.Size > 0
-                    ? Math.Clamp((double)bytes / file.Size, 0, 1)
-                    : 0;
+                ReportTransferProgress(bytes, file.Size, activity);
             });
 
             try
@@ -270,6 +278,7 @@ public partial class MainPage : ContentPage
                         source.Seek(offset, SeekOrigin.Begin);
                     }
                 }
+                BeginTransfer(offset, activity);
                 await _remote.UploadAsync(destination, source, offset, progress, token);
                 return;
             }
@@ -298,6 +307,9 @@ public partial class MainPage : ContentPage
         _operation?.Cancel();
         _operation = new CancellationTokenSource();
         TransferProgress.Progress = 0;
+        SpeedText.Text = "0 B/s";
+        StatusText.Text = "Arbetar…";
+        StatusActivity.IsRunning = true;
         try
         {
             await action(_operation.Token);
@@ -305,6 +317,13 @@ public partial class MainPage : ContentPage
         }
         catch (OperationCanceledException) { }
         catch (Exception exception) { await DisplayAlert("FluxFTP", exception.Message, "OK"); }
+        finally
+        {
+            StatusActivity.IsRunning = false;
+            StatusText.Text = _connected
+                ? $"Ansluten • {_selectedProfile?.Name}"
+                : "Inte ansluten";
+        }
     }
 
     private static string NormalizePath(string? path) =>
@@ -338,7 +357,8 @@ public partial class MainPage : ContentPage
         if (!entry.IsDirectory)
         {
             await using var destination = File.Create(localPath);
-            await _remote.DownloadAsync(entry.FullPath, destination, Progress(entry.Size ?? 0), token);
+            await _remote.DownloadAsync(entry.FullPath, destination,
+                Progress(entry.Size ?? 0, $"Laddar ner {entry.Name}"), token);
             return;
         }
         Directory.CreateDirectory(localPath);
@@ -351,6 +371,47 @@ public partial class MainPage : ContentPage
         var normalized = NormalizePath(path).TrimEnd('/');
         var separator = normalized.LastIndexOf('/');
         return separator <= 0 ? "/" : normalized[..separator];
+    }
+
+    private void BeginTransfer(long startBytes, string activity)
+    {
+        _transferStartBytes = startBytes;
+        _transferTimer.Restart();
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            StatusText.Text = activity;
+            SpeedText.Text = "0 B/s";
+            TransferProgress.Progress = 0;
+        });
+    }
+
+    private void ReportTransferProgress(long bytes, long total, string activity)
+    {
+        var elapsed = Math.Max(_transferTimer.Elapsed.TotalSeconds, 0.001);
+        var speed = Math.Max(0, (long)((bytes - _transferStartBytes) / elapsed));
+        var fraction = total > 0 ? Math.Clamp((double)bytes / total, 0, 1) : 0;
+        var detail = total > 0
+            ? $"{activity} • {FormatBytes(bytes)} / {FormatBytes(total)} • {fraction:P0}"
+            : $"{activity} • {FormatBytes(bytes)}";
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            TransferProgress.Progress = fraction;
+            StatusText.Text = detail;
+            SpeedText.Text = $"{FormatBytes(speed)}/s";
+        });
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        var value = Math.Max(0, (double)bytes);
+        var unit = 0;
+        while (value >= 1024 && unit < units.Length - 1)
+        {
+            value /= 1024;
+            unit++;
+        }
+        return unit == 0 ? $"{value:0} {units[unit]}" : $"{value:0.0} {units[unit]}";
     }
 }
 
