@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.0 — 2026-08-03
+
+- Added an explicit per-site FTPS TLS policy.
+- Automatic mode negotiates TLS 1.3 or TLS 1.2 and remains the default.
+- Added options to require TLS 1.3 or use TLS 1.2 only for compatibility.
+- Applied the selected policy to both FTPS control and data connections.
+- TLS 1.0 and TLS 1.1 remain disabled in every mode.
+
 ## 1.6.0 — 2026-08-03
 
 - Ported the FlashFXP-inspired transfer status details from FluxFTP 1.0.29.

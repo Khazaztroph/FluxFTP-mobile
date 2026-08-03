@@ -9,6 +9,7 @@ public sealed class SiteEditorPage : ContentPage
     private readonly SiteOptions _originalOptions;
     private readonly Entry _name = new() { Placeholder = "Namn" };
     private readonly Picker _protocol = new() { Title = "Protokoll" };
+    private readonly Picker _tlsPolicy = new() { Title = "TLS-version" };
     private readonly Entry _host = new() { Placeholder = "Server" };
     private readonly Entry _port = new() { Placeholder = "Port", Keyboard = Keyboard.Numeric };
     private readonly Entry _username = new() { Placeholder = "Användarnamn" };
@@ -26,6 +27,12 @@ public sealed class SiteEditorPage : ContentPage
         _originalOptions = profile?.EffectiveOptions ?? new SiteOptions();
         Title = profile is null ? "Ny site" : "Redigera site";
         _protocol.ItemsSource = Enum.GetValues<TransferProtocol>().Select(TransferProtocolNames.Display).ToList();
+        _tlsPolicy.ItemsSource = new[]
+        {
+            "Automatiskt (TLS 1.3 eller 1.2)",
+            "Kräv TLS 1.3",
+            "Endast TLS 1.2"
+        };
         if (profile is not null)
         {
             _name.Text = profile.Name;
@@ -38,21 +45,27 @@ public sealed class SiteEditorPage : ContentPage
             _hostKey.Text = profile.SshHostKeyFingerprint;
             _invalidCertificate.IsToggled = profile.AllowInvalidCertificate;
             _brokenPasv.IsToggled = profile.EffectiveOptions.BrokenPasv;
+            _tlsPolicy.SelectedIndex = (int)profile.TlsPolicy;
         }
         else
         {
             _protocol.SelectedIndex = (int)TransferProtocol.FtpsExplicit;
             _port.Text = "21";
+            _tlsPolicy.SelectedIndex = (int)TlsPolicy.Automatic;
         }
         _protocol.SelectedIndexChanged += (_, _) =>
         {
-            _port.Text = ((TransferProtocol)Math.Max(0, _protocol.SelectedIndex)) switch
+            var selectedProtocol = (TransferProtocol)Math.Max(0, _protocol.SelectedIndex);
+            _port.Text = selectedProtocol switch
             {
                 TransferProtocol.Sftp => "22",
                 TransferProtocol.FtpsImplicit => "990",
                 _ => "21"
             };
+            _tlsPolicy.IsEnabled = selectedProtocol is TransferProtocol.FtpsExplicit or TransferProtocol.FtpsImplicit;
         };
+        _tlsPolicy.IsEnabled = (TransferProtocol)Math.Max(0, _protocol.SelectedIndex)
+            is TransferProtocol.FtpsExplicit or TransferProtocol.FtpsImplicit;
         var save = new Button { Text = "Spara" };
         save.Clicked += OnSave;
         Content = new ScrollView
@@ -63,7 +76,13 @@ public sealed class SiteEditorPage : ContentPage
                 Spacing = 12,
                 Children =
                 {
-                    _name, _protocol, _host, _port, _username, _password, _startPath, _hostKey,
+                    _name, _protocol, _tlsPolicy, _host, _port, _username, _password, _startPath, _hostKey,
+                    new Label
+                    {
+                        Text = "Automatiskt väljer högsta gemensamma version. TLS 1.0 och 1.1 tillåts aldrig.",
+                        TextColor = Color.FromArgb("#91A2B1"),
+                        FontSize = 12
+                    },
                     new HorizontalStackLayout
                     {
                         Children =
@@ -124,7 +143,10 @@ public sealed class SiteEditorPage : ContentPage
             _id, _name.Text.Trim(), _host.Text.Trim(), port, _username.Text?.Trim() ?? "",
             protocol, _password.Text ?? "", _invalidCertificate.IsToggled,
             Options: options,
-            SshHostKeyFingerprint: _hostKey.Text?.Trim() ?? "");
+            SshHostKeyFingerprint: _hostKey.Text?.Trim() ?? "",
+            TlsPolicy: protocol is TransferProtocol.FtpsExplicit or TransferProtocol.FtpsImplicit
+                ? (TlsPolicy)Math.Max(0, _tlsPolicy.SelectedIndex)
+                : TlsPolicy.Automatic);
         if (Saved is not null) await Saved(profile);
     }
 }
