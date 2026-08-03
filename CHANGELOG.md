@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.0 — 2026-08-03
+
+- Ported the FlashFXP-inspired transfer status details from FluxFTP 1.0.29.
+- Added elapsed time and estimated remaining time to the mobile status bar.
+- Improved live speed sampling with a smoothed current-speed value.
+- Ported the working SFTP improvements from FluxFTP 1.0.28.
+- Added SFTP symbolic-link navigation and shared-core rename, delete, chmod and keep-alive operations.
+
 ## 1.5.0 — 2026-07-30
 
 - Ported the relevant live-throughput behavior from FluxFTP 1.0.26.

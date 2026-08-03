@@ -22,6 +22,8 @@ public sealed record RemoteEntry(
     bool IsDirectory,
     long? Size,
     DateTimeOffset? ModifiedAt,
-    string Attributes = "");
+    string Attributes = "",
+    bool IsSymbolicLink = false,
+    string? LinkTarget = null);
 
 public sealed record RemoteCommandResult(int StatusCode, string Message);

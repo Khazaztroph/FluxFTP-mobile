@@ -23,6 +23,9 @@ public partial class MainPage : ContentPage
     private bool _connected;
     private readonly Stopwatch _transferTimer = new();
     private long _transferStartBytes;
+    private long _lastSampleBytes;
+    private TimeSpan _lastSampleAt;
+    private double _smoothedBytesPerSecond;
 
     public MainPage()
     {
@@ -323,6 +326,7 @@ public partial class MainPage : ContentPage
             StatusText.Text = _connected
                 ? $"Ansluten • {_selectedProfile?.Name}"
                 : "Inte ansluten";
+            if (!_connected) TimingText.Text = "Förfluten: —  •  Kvar: —";
         }
     }
 
@@ -376,19 +380,33 @@ public partial class MainPage : ContentPage
     private void BeginTransfer(long startBytes, string activity)
     {
         _transferStartBytes = startBytes;
+        _lastSampleBytes = startBytes;
+        _lastSampleAt = TimeSpan.Zero;
+        _smoothedBytesPerSecond = 0;
         _transferTimer.Restart();
         MainThread.BeginInvokeOnMainThread(() =>
         {
             StatusText.Text = activity;
             SpeedText.Text = "0 B/s";
             TransferProgress.Progress = 0;
+            TimingText.Text = "Förfluten: 00:00  •  Kvar: —";
         });
     }
 
     private void ReportTransferProgress(long bytes, long total, string activity)
     {
-        var elapsed = Math.Max(_transferTimer.Elapsed.TotalSeconds, 0.001);
-        var speed = Math.Max(0, (long)((bytes - _transferStartBytes) / elapsed));
+        var elapsed = _transferTimer.Elapsed;
+        var sampleSeconds = (elapsed - _lastSampleAt).TotalSeconds;
+        if (sampleSeconds >= 0.2)
+        {
+            var instantSpeed = Math.Max(0, (bytes - _lastSampleBytes) / sampleSeconds);
+            _smoothedBytesPerSecond = _smoothedBytesPerSecond <= 0
+                ? instantSpeed
+                : (_smoothedBytesPerSecond * 0.7) + (instantSpeed * 0.3);
+            _lastSampleBytes = bytes;
+            _lastSampleAt = elapsed;
+        }
+        var speed = Math.Max(0, (long)_smoothedBytesPerSecond);
         var fraction = total > 0 ? Math.Clamp((double)bytes / total, 0, 1) : 0;
         var detail = total > 0
             ? $"{activity} • {FormatBytes(bytes)} / {FormatBytes(total)} • {fraction:P0}"
@@ -398,6 +416,11 @@ public partial class MainPage : ContentPage
             TransferProgress.Progress = fraction;
             StatusText.Text = detail;
             SpeedText.Text = $"{FormatBytes(speed)}/s";
+            var remainingBytes = Math.Max(0, total - bytes);
+            var remaining = speed > 0 && total > 0
+                ? FormatDuration(TimeSpan.FromSeconds(remainingBytes / (double)speed))
+                : "—";
+            TimingText.Text = $"Förfluten: {FormatDuration(elapsed)}  •  Kvar: {remaining}";
         });
     }
 
@@ -412,6 +435,14 @@ public partial class MainPage : ContentPage
             unit++;
         }
         return unit == 0 ? $"{value:0} {units[unit]}" : $"{value:0.0} {units[unit]}";
+    }
+
+    private static string FormatDuration(TimeSpan value)
+    {
+        if (value < TimeSpan.Zero || !double.IsFinite(value.TotalSeconds)) return "—";
+        return value.TotalHours >= 1
+            ? $"{(int)value.TotalHours}:{value.Minutes:00}:{value.Seconds:00}"
+            : $"{value.Minutes:00}:{value.Seconds:00}";
     }
 }
 

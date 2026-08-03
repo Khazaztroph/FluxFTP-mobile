@@ -181,7 +181,7 @@
                 Stroke="{StaticResource BorderColor}"
                 StrokeThickness="1"
                 Padding="8,5">
-            <Grid RowDefinitions="Auto,Auto"
+            <Grid RowDefinitions="Auto,Auto,Auto"
                   ColumnDefinitions="Auto,*,Auto"
                   ColumnSpacing="7"
                   RowSpacing="4">
@@ -208,6 +208,13 @@
                              x:Name="TransferProgress"
                              HeightRequest="4"
                              Progress="0" />
+                <Label Grid.Row="2"
+                       Grid.ColumnSpan="3"
+                       x:Name="TimingText"
+                       Text="Förfluten: —  •  Kvar: —"
+                       FontSize="9"
+                       TextColor="{StaticResource MutedTextColor}"
+                       HorizontalOptions="End" />
             </Grid>
         </Border>
     </Grid>

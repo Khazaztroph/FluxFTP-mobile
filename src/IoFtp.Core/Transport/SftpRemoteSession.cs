@@ -9,6 +9,7 @@ public sealed class SftpRemoteSession : IRemoteSession
 {
     private SftpClient? _client;
     private string? _observedFingerprint;
+    private string? _renameFrom;
 
     public bool IsConnected => _client?.IsConnected == true;
     public IReadOnlySet<string> Capabilities { get; } = new HashSet<string>(
@@ -68,12 +69,13 @@ public sealed class SftpRemoteSession : IRemoteSession
             .Select(file => new RemoteEntry(
                 file.Name,
                 NormalizeRemotePath(file.FullName),
-                file.IsDirectory,
+                file.IsDirectory || file.IsSymbolicLink,
                 file.IsDirectory ? null : file.Length,
                 file.LastWriteTimeUtc == default
                     ? null
                     : new DateTimeOffset(file.LastWriteTimeUtc, TimeSpan.Zero),
-                file.Attributes?.ToString() ?? ""))
+                file.Attributes?.ToString() ?? "",
+                file.IsSymbolicLink))
             .ToList();
     }
 
@@ -124,6 +126,39 @@ public sealed class SftpRemoteSession : IRemoteSession
             if (!Client().Exists(path)) Client().CreateDirectory(path);
             return Task.FromResult(new RemoteCommandResult(257, $"Created {path}"));
         }
+        if (command.StartsWith("RNFR ", StringComparison.OrdinalIgnoreCase))
+        {
+            _renameFrom = command[5..].Trim();
+            return Task.FromResult(new RemoteCommandResult(350, $"Rename source {_renameFrom}"));
+        }
+        if (command.StartsWith("RNTO ", StringComparison.OrdinalIgnoreCase) &&
+            _renameFrom is { Length: > 0 } source)
+        {
+            var destination = command[5..].Trim();
+            Client().RenameFile(source, destination);
+            _renameFrom = null;
+            return Task.FromResult(new RemoteCommandResult(250, $"Renamed to {destination}"));
+        }
+        if (command.StartsWith("DELE ", StringComparison.OrdinalIgnoreCase))
+        {
+            Client().DeleteFile(command[5..].Trim());
+            return Task.FromResult(new RemoteCommandResult(250, "File deleted"));
+        }
+        if (command.StartsWith("RMD ", StringComparison.OrdinalIgnoreCase))
+        {
+            Client().DeleteDirectory(command[4..].Trim());
+            return Task.FromResult(new RemoteCommandResult(250, "Directory deleted"));
+        }
+        if (command.StartsWith("SITE CHMOD ", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = command[11..].Trim().Split(' ', 2);
+            if (parts.Length != 2 || !short.TryParse(parts[0], out var digits))
+                return Task.FromResult(new RemoteCommandResult(501, "Invalid chmod mode"));
+            Client().ChangePermissions(parts[1], (short)Convert.ToInt32(digits.ToString(), 8));
+            return Task.FromResult(new RemoteCommandResult(200, $"Permissions changed to {parts[0]}"));
+        }
+        if (command.Equals("NOOP", StringComparison.OrdinalIgnoreCase))
+            return Task.FromResult(new RemoteCommandResult(200, "SFTP session active"));
         return Task.FromResult(new RemoteCommandResult(
             502, "Raw FTP commands are not available over SFTP."));
     }
