@@ -32,6 +32,7 @@ public enum DirectoryListingMode
 
 public enum ProxyType { None, Socks4, Socks5, HttpConnect }
 public enum FxpProtectionMode { AutoSecure, Clear }
+public enum TlsPolicy { Automatic, RequireTls13, Tls12Only }
 
 public sealed record ProxyConfiguration(ProxyType Type = ProxyType.None, string Host = "", int Port = 0,
     string Username = "", string Password = "", bool ProxyDns = true, bool UseForData = true);
@@ -72,7 +73,8 @@ public sealed record ConnectionProfile(
     ProxyConfiguration? Proxy = null,
     string AlternateAddresses = "",
     string Description = "",
-    string SshHostKeyFingerprint = "")
+    string SshHostKeyFingerprint = "",
+    TlsPolicy TlsPolicy = TlsPolicy.Automatic)
 {
     [JsonIgnore] public SiteOptions EffectiveOptions => Options ?? new SiteOptions();
     [JsonIgnore] public string ProtocolDisplay => TransferProtocolNames.Display(Protocol);

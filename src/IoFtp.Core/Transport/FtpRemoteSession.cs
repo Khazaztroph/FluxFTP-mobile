@@ -523,7 +523,7 @@ public sealed class FtpRemoteSession : IRemoteSession
         await ssl.AuthenticateAsClientAsync(new SslClientAuthenticationOptions
         {
             TargetHost = string.IsNullOrWhiteSpace(ConnectedHost) ? _profile.Host : ConnectedHost,
-            EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+            EnabledSslProtocols = EnabledTlsProtocols()
         }, cancellationToken);
         return ssl;
     }
@@ -680,10 +680,17 @@ public sealed class FtpRemoteSession : IRemoteSession
         await ssl.AuthenticateAsClientAsync(new SslClientAuthenticationOptions
         {
             TargetHost = string.IsNullOrWhiteSpace(ConnectedHost) ? _profile!.Host : ConnectedHost,
-            EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+            EnabledSslProtocols = EnabledTlsProtocols()
         }, cancellationToken);
         _controlStream = ssl;
     }
+
+    private SslProtocols EnabledTlsProtocols() => _profile?.TlsPolicy switch
+    {
+        TlsPolicy.RequireTls13 => SslProtocols.Tls13,
+        TlsPolicy.Tls12Only => SslProtocols.Tls12,
+        _ => SslProtocols.Tls12 | SslProtocols.Tls13
+    };
 
     private bool ValidateCertificate(object sender, System.Security.Cryptography.X509Certificates.X509Certificate? certificate,
         System.Security.Cryptography.X509Certificates.X509Chain? chain, SslPolicyErrors errors) =>
