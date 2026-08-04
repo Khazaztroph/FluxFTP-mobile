@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.8.0 — 2026-08-04
+
+- Ported the mobile-relevant compatibility fixes from FluxFTP 1.0.33 and 1.0.34.
+- Explicit FTPS falls back from `AUTH TLS` to `AUTH SSL` when required by an older server.
+- Automatic TLS mode reconnects with TLS 1.2 only after a malformed TLS frame from a server or bouncer.
+- Forced TLS 1.3 never silently falls back to TLS 1.2.
+- The mobile status bar now shows the negotiated TLS version and cipher suite, or SFTP/SSH.
+
 ## 1.7.0 — 2026-08-03
 
 - Added an explicit per-site FTPS TLS policy.

@@ -21,6 +21,7 @@ public partial class MainPage : ContentPage
     private CancellationTokenSource? _operation;
     private bool _dualView;
     private bool _connected;
+    private string _connectionSecurity = "";
     private readonly Stopwatch _transferTimer = new();
     private long _transferStartBytes;
     private long _lastSampleBytes;
@@ -131,6 +132,7 @@ public partial class MainPage : ContentPage
             await RefreshRemoteAsync(token);
             ConnectButton.Text = "Återanslut";
             _connected = true;
+            _connectionSecurity = _remote.ConnectionSecurity;
         }, $"Ansluten till {profile.Name}");
     }
 
@@ -324,7 +326,7 @@ public partial class MainPage : ContentPage
         {
             StatusActivity.IsRunning = false;
             StatusText.Text = _connected
-                ? $"Ansluten • {_selectedProfile?.Name}"
+                ? $"Ansluten • {_selectedProfile?.Name} • {_connectionSecurity}"
                 : "Inte ansluten";
             if (!_connected) TimingText.Text = "Förfluten: —  •  Kvar: —";
         }
