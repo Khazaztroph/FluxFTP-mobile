@@ -10,6 +10,13 @@ public sealed class RemoteBrowserService : IAsyncDisposable
     private IRemoteSession? _session;
     private ConnectionProfile? _profile;
 
+    public string ConnectionSecurity => _session switch
+    {
+        SftpRemoteSession => "SFTP • SSH",
+        FtpRemoteSession ftp => ftp.ConnectionSecurity,
+        _ => "Inte ansluten"
+    };
+
     public async Task ConnectAsync(ConnectionProfile profile, CancellationToken token)
     {
         if (_session is not null) await _session.DisposeAsync();

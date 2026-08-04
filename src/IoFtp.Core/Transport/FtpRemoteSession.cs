@@ -18,15 +18,37 @@ public sealed class FtpRemoteSession : IRemoteSession
     private ConnectionProfile? _profile;
     private readonly SemaphoreSlim _operationGate = new(1, 1);
     private bool _protectData = true;
+    private bool _automaticTls12Fallback;
 
     public bool IsConnected { get; private set; }
     public string ConnectedHost { get; private set; } = "";
     public int ConnectedPort { get; private set; }
     public IReadOnlySet<string> Capabilities { get; private set; } = new HashSet<string>();
     public string LastFxpNegotiation { get; private set; } = "None";
+    public string ConnectionSecurity { get; private set; } = "FTP";
     public FxpProtectionMode FxpProtection => _profile?.EffectiveOptions.FxpProtection ?? FxpProtectionMode.AutoSecure;
 
     public async Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken)
+    {
+        _automaticTls12Fallback = false;
+        try
+        {
+            await ConnectCoreAsync(profile, cancellationToken);
+        }
+        catch (Exception exception) when (
+            profile.Protocol is TransferProtocol.FtpsExplicit or TransferProtocol.FtpsImplicit &&
+            profile.TlsPolicy == TlsPolicy.Automatic &&
+            IsMalformedTlsFrame(exception) &&
+            !cancellationToken.IsCancellationRequested)
+        {
+            using (var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(2)))
+                await DisconnectAsync(cleanupTimeout.Token);
+            _automaticTls12Fallback = true;
+            await ConnectCoreAsync(profile, cancellationToken);
+        }
+    }
+
+    private async Task ConnectCoreAsync(ConnectionProfile profile, CancellationToken cancellationToken)
     {
         if (profile.Protocol == TransferProtocol.Sftp)
             throw new NotSupportedException("SFTP transport is not available yet.");
@@ -47,7 +69,10 @@ public sealed class FtpRemoteSession : IRemoteSession
 
         if (profile.Protocol == TransferProtocol.FtpsExplicit)
         {
-            EnsureSuccess(await CommandAsync("AUTH TLS", cancellationToken), 234, 334);
+            var authResponse = await CommandAsync("AUTH TLS", cancellationToken);
+            if (authResponse.Code is not (234 or 334))
+                authResponse = await CommandAsync("AUTH SSL", cancellationToken);
+            EnsureSuccess(authResponse, 234, 334);
             await EnableTlsAsync(cancellationToken);
             CreateTextStreams();
         }
@@ -682,6 +707,7 @@ public sealed class FtpRemoteSession : IRemoteSession
             TargetHost = string.IsNullOrWhiteSpace(ConnectedHost) ? _profile!.Host : ConnectedHost,
             EnabledSslProtocols = EnabledTlsProtocols()
         }, cancellationToken);
+        ConnectionSecurity = DescribeTls(ssl);
         _controlStream = ssl;
     }
 
@@ -689,8 +715,27 @@ public sealed class FtpRemoteSession : IRemoteSession
     {
         TlsPolicy.RequireTls13 => SslProtocols.Tls13,
         TlsPolicy.Tls12Only => SslProtocols.Tls12,
+        _ when _automaticTls12Fallback => SslProtocols.Tls12,
         _ => SslProtocols.Tls12 | SslProtocols.Tls13
     };
+
+    private static string DescribeTls(SslStream ssl) => ssl.SslProtocol switch
+    {
+        SslProtocols.Tls13 => $"TLS 1.3 • {ssl.NegotiatedCipherSuite}",
+        SslProtocols.Tls12 => $"TLS 1.2 • {ssl.NegotiatedCipherSuite}",
+        _ => ssl.SslProtocol.ToString()
+    };
+
+    private static bool IsMalformedTlsFrame(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current.Message.Contains("Cannot determine the frame size", StringComparison.OrdinalIgnoreCase) ||
+                current.Message.Contains("corrupted frame", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
 
     private bool ValidateCertificate(object sender, System.Security.Cryptography.X509Certificates.X509Certificate? certificate,
         System.Security.Cryptography.X509Certificates.X509Chain? chain, SslPolicyErrors errors) =>
