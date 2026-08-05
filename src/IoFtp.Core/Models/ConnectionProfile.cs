@@ -35,7 +35,7 @@ public enum FxpProtectionMode { AutoSecure, Clear }
 public enum TlsPolicy { Automatic, RequireTls13, Tls12Only }
 
 public sealed record ProxyConfiguration(ProxyType Type = ProxyType.None, string Host = "", int Port = 0,
-    string Username = "", string Password = "", bool ProxyDns = true, bool UseForData = true);
+    string Username = "", [property: JsonIgnore] string Password = "", bool ProxyDns = true, bool UseForData = true);
 
 public sealed record SiteOptions(
     int MaxSlots = 2,
