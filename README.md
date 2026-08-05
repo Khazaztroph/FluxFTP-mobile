@@ -5,7 +5,7 @@ FluxFTP Mobile is the Android companion to
 and shares its FTP/FTPS transport contracts and site format with the desktop
 application.
 
-## Version 1.9.0
+## Version 1.10.0
 
 - FTP, explicit FTPS, implicit FTPS and SFTP
 - Per-site Broken PASV mode that uses PORT/active FTP directly
@@ -21,6 +21,8 @@ application.
 - Site Manager with passwords protected by Android Secure Storage
 - Dual-pane local/remote browser
 - Android Storage Access Framework file and folder selection
+- Navigable SAF local folders with Back, Forward, Up and Refresh
+- Persistent local start folder, current-path display and folders-first sorting
 - Multi-selection and batch transfers
 - Recursive folder upload with the directory structure preserved
 - Recursive remote-folder download as ZIP
