@@ -72,7 +72,7 @@
               x:Name="PaneGrid"
               ColumnDefinitions="*,*"
               ColumnSpacing="7">
-            <Grid x:Name="LocalPane" RowDefinitions="Auto,*">
+            <Grid x:Name="LocalPane" RowDefinitions="Auto,Auto,*" RowSpacing="3">
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="3">
                     <Label Text="LOKALT"
                            FontSize="12"
@@ -84,23 +84,39 @@
                             FontSize="11"
                             Clicked="OnPickFiles" />
                     <Button Grid.Column="2"
-                            Text="Mapp"
+                            Text="Startmapp"
                             Padding="8,5"
                             FontSize="11"
                             Clicked="OnPickFolder" />
                 </Grid>
-                <CollectionView Grid.Row="1"
+                <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,Auto,*" ColumnSpacing="2">
+                    <Button Text="‹" Padding="8,4" FontSize="14" Clicked="OnLocalBack" />
+                    <Button Grid.Column="1" Text="›" Padding="8,4" FontSize="14" Clicked="OnLocalForward" />
+                    <Button Grid.Column="2" Text="↑" Padding="8,4" FontSize="14" Clicked="OnLocalUp" />
+                    <Button Grid.Column="3" Text="↻" Padding="8,4" FontSize="14" Clicked="OnLocalRefresh" />
+                    <Label Grid.Column="4"
+                           x:Name="LocalPathLabel"
+                           Text="Ingen lokal mapp vald"
+                           FontSize="10"
+                           TextColor="{StaticResource MutedTextColor}"
+                           VerticalOptions="Center"
+                           LineBreakMode="HeadTruncation" />
+                </Grid>
+                <CollectionView Grid.Row="2"
                                 x:Name="LocalFiles"
-                                SelectionMode="Multiple">
+                                SelectionMode="Multiple"
+                                SelectionChanged="OnLocalSelectionChanged">
                     <CollectionView.EmptyView>
-                        <Label Text="Välj filer eller en mapp för uppladdning."
+                        <Label Text="Välj en startmapp för att bläddra, eller välj fristående filer."
                                Padding="6"
                                FontSize="12"
                                TextColor="Gray" />
                     </CollectionView.EmptyView>
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
-                            <VerticalStackLayout Padding="6,7" Spacing="1">
+                            <Grid Padding="6,7" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                                <Label Text="{Binding Icon}" FontSize="15" VerticalOptions="Center" />
+                                <VerticalStackLayout Grid.Column="1" Spacing="1">
                                 <Label Text="{Binding FileName}"
                                        FontSize="13"
                                        LineBreakMode="TailTruncation" />
@@ -108,7 +124,10 @@
                                        FontSize="9"
                                        TextColor="{StaticResource MutedTextColor}"
                                        LineBreakMode="TailTruncation" />
-                            </VerticalStackLayout>
+                                </VerticalStackLayout>
+                                <Label Grid.Column="2" Text="{Binding SizeText}" FontSize="9"
+                                       TextColor="{StaticResource MutedTextColor}" VerticalOptions="Center" />
+                            </Grid>
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
                 </CollectionView>

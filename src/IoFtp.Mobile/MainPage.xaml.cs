@@ -12,6 +12,7 @@ public partial class MainPage : ContentPage
 {
     private const string SelectedSitePreference = "fluxftp.selected-site.v1";
     private const string DualViewPreference = "fluxftp.dual-view.v1";
+    private const string LocalRootPreference = "fluxftp.local-root.v1";
     private readonly SiteStore _sites;
     private readonly RemoteBrowserService _remote;
     private readonly ObservableCollection<LocalTransferFile> _localFiles = [];
@@ -21,6 +22,9 @@ public partial class MainPage : ContentPage
     private CancellationTokenSource? _operation;
     private bool _dualView;
     private bool _connected;
+    private readonly List<LocalFolderLocation> _localHistory = [];
+    private int _localHistoryIndex = -1;
+    private bool _openingLocalFolder;
     private string _connectionSecurity = "";
     private readonly Stopwatch _transferTimer = new();
     private long _transferStartBytes;
@@ -37,6 +41,7 @@ public partial class MainPage : ContentPage
         RemoteFiles.ItemsSource = _remoteFiles;
         _dualView = Preferences.Default.Get(DualViewPreference, false);
         ApplyViewMode();
+        _ = RestoreLocalFolderAsync();
     }
 
     protected override async void OnAppearing()
@@ -175,9 +180,13 @@ public partial class MainPage : ContentPage
     {
         try
         {
-            var files = await AndroidFolderPicker.PickFolderAsync();
-            foreach (var file in files)
-                if (_localFiles.All(x => x.DisplayPath != file.DisplayPath)) _localFiles.Add(file);
+            var folder = await AndroidFolderPicker.PickFolderAsync();
+            if (folder is null) return;
+            Preferences.Default.Set(LocalRootPreference,
+                System.Text.Json.JsonSerializer.Serialize(folder));
+            _localHistory.Clear();
+            _localHistoryIndex = -1;
+            await NavigateLocalAsync(folder, true);
         }
         catch (Exception exception)
         {
@@ -185,16 +194,106 @@ public partial class MainPage : ContentPage
         }
     }
 
+    private async void OnLocalSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_openingLocalFolder || e.CurrentSelection.Count != 1 ||
+            e.CurrentSelection[0] is not LocalTransferFile { Folder: { } folder }) return;
+        _openingLocalFolder = true;
+        try
+        {
+            LocalFiles.SelectedItems.Clear();
+            await NavigateLocalAsync(folder, true);
+        }
+        catch (Exception exception) { await DisplayAlert("Lokal mapp", exception.Message, "OK"); }
+        finally { _openingLocalFolder = false; }
+    }
+
+    private async void OnLocalBack(object sender, EventArgs e)
+    {
+        if (_localHistoryIndex <= 0) return;
+        _localHistoryIndex--;
+        await TryNavigateLocalAsync(_localHistory[_localHistoryIndex]);
+    }
+
+    private async void OnLocalForward(object sender, EventArgs e)
+    {
+        if (_localHistoryIndex >= _localHistory.Count - 1) return;
+        _localHistoryIndex++;
+        await TryNavigateLocalAsync(_localHistory[_localHistoryIndex]);
+    }
+
+    private async void OnLocalUp(object sender, EventArgs e)
+    {
+        if (_localHistoryIndex <= 0) return;
+        var current = _localHistory[_localHistoryIndex];
+        for (var index = _localHistoryIndex - 1; index >= 0; index--)
+        {
+            var candidate = _localHistory[index];
+            if (current.DisplayPath.StartsWith(candidate.DisplayPath + "/", StringComparison.Ordinal))
+            {
+                _localHistoryIndex = index;
+                await TryNavigateLocalAsync(candidate);
+                return;
+            }
+        }
+    }
+
+    private async void OnLocalRefresh(object sender, EventArgs e)
+    {
+        if (_localHistoryIndex >= 0)
+            await TryNavigateLocalAsync(_localHistory[_localHistoryIndex]);
+    }
+
+    private async Task TryNavigateLocalAsync(LocalFolderLocation folder)
+    {
+        try { await NavigateLocalAsync(folder, false); }
+        catch (Exception exception) { await DisplayAlert("Lokal mapp", exception.Message, "OK"); }
+    }
+
+    private async Task NavigateLocalAsync(LocalFolderLocation folder, bool addToHistory)
+    {
+        var entries = await AndroidFolderPicker.ListFolderAsync(folder);
+        if (addToHistory)
+        {
+            if (_localHistoryIndex < _localHistory.Count - 1)
+                _localHistory.RemoveRange(_localHistoryIndex + 1, _localHistory.Count - _localHistoryIndex - 1);
+            _localHistory.Add(folder);
+            _localHistoryIndex = _localHistory.Count - 1;
+        }
+        _localFiles.Clear();
+        foreach (var entry in entries) _localFiles.Add(entry);
+        LocalPathLabel.Text = folder.DisplayPath;
+    }
+
+    private async Task RestoreLocalFolderAsync()
+    {
+        try
+        {
+            var json = Preferences.Default.Get(LocalRootPreference, "");
+            if (string.IsNullOrWhiteSpace(json)) return;
+            var folder = System.Text.Json.JsonSerializer.Deserialize<LocalFolderLocation>(json);
+            if (folder is not null) await NavigateLocalAsync(folder, true);
+        }
+        catch
+        {
+            Preferences.Default.Remove(LocalRootPreference);
+            LocalPathLabel.Text = "Välj startmapp igen";
+        }
+    }
+
     private async void OnUpload(object sender, EventArgs e)
     {
-        var files = LocalFiles.SelectedItems.Cast<LocalTransferFile>().ToList();
-        if (files.Count == 0)
+        var selected = LocalFiles.SelectedItems.Cast<LocalTransferFile>().ToList();
+        if (selected.Count == 0)
         {
             await DisplayAlert("Uppladdning", "Markera en eller flera filer/mappar.", "OK");
             return;
         }
         await RunAsync(async token =>
         {
+            var files = new List<LocalTransferFile>();
+            foreach (var entry in selected)
+                files.AddRange(await AndroidFolderPicker.ExpandAsync(entry, token));
             var createdDirectories = new HashSet<string>(StringComparer.Ordinal);
             foreach (var file in files)
             {
@@ -204,7 +303,7 @@ public partial class MainPage : ContentPage
             }
             await RefreshRemoteAsync(token);
             LocalFiles.SelectedItems.Clear();
-        }, $"{files.Count} fil(er) uppladdade");
+        }, $"{selected.Count} objekt uppladdade");
     }
 
     private async void OnDownload(object sender, EventArgs e)
@@ -271,7 +370,8 @@ public partial class MainPage : ContentPage
 
             try
             {
-                await using var source = await file.OpenReadAsync();
+                await using var source = await (file.OpenReadAsync?.Invoke() ??
+                    throw new IOException($"Kan inte öppna {file.DisplayPath}."));
                 if (offset > 0)
                 {
                     if (!source.CanSeek)

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.10.0 — 2026-08-05
+
+- Replaced the flattened Android folder import with a navigable SAF local browser.
+- Added Back, Forward, Up and Refresh controls to the local pane.
+- Added the current local path, folders-first sorting, folder/file icons and compact sizes.
+- Tapping a local folder now opens it without leaving FluxFTP Mobile.
+- Persisted the selected SAF start folder so it can be reopened after an app restart.
+- Kept standalone multi-file selection and stream-based uploads compatible with cloud providers.
+
 ## 1.9.0 — 2026-08-05
 
 - Added FluxFTP-compatible proxy settings per mobile site.

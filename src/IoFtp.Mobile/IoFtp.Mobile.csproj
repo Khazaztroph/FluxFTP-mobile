@@ -26,8 +26,8 @@
 		<ApplicationId>se.fluxftp.mobile</ApplicationId>
 
 		<!-- Versions -->
-		<ApplicationDisplayVersion>1.9.0</ApplicationDisplayVersion>
-		<ApplicationVersion>14</ApplicationVersion>
+		<ApplicationDisplayVersion>1.10.0</ApplicationDisplayVersion>
+		<ApplicationVersion>15</ApplicationVersion>
 		<RuntimeIdentifier Condition="'$(Configuration)' == 'Release'">android-arm64</RuntimeIdentifier>
 		<AndroidPackageFormat>apk</AndroidPackageFormat>
 		<AndroidUseSharedRuntime>false</AndroidUseSharedRuntime>
