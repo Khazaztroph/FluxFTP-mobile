@@ -18,6 +18,13 @@ public sealed class SiteEditorPage : ContentPage
     private readonly Entry _hostKey = new() { Placeholder = "SSH host key (SHA256), valfritt" };
     private readonly Switch _invalidCertificate = new();
     private readonly Switch _brokenPasv = new();
+    private readonly Picker _proxyType = new() { Title = "Proxy" };
+    private readonly Entry _proxyHost = new() { Placeholder = "Proxyserver" };
+    private readonly Entry _proxyPort = new() { Placeholder = "Proxyport", Keyboard = Keyboard.Numeric };
+    private readonly Entry _proxyUsername = new() { Placeholder = "Proxyanvändare" };
+    private readonly Entry _proxyPassword = new() { Placeholder = "Proxylösenord", IsPassword = true };
+    private readonly Switch _proxyDns = new();
+    private readonly Switch _proxyData = new();
 
     public event Func<ConnectionProfile, Task>? Saved;
 
@@ -33,6 +40,7 @@ public sealed class SiteEditorPage : ContentPage
             "Kräv TLS 1.3",
             "Endast TLS 1.2"
         };
+        _proxyType.ItemsSource = new[] { "Ingen proxy", "SOCKS4", "SOCKS5", "HTTP CONNECT" };
         if (profile is not null)
         {
             _name.Text = profile.Name;
@@ -46,12 +54,22 @@ public sealed class SiteEditorPage : ContentPage
             _invalidCertificate.IsToggled = profile.AllowInvalidCertificate;
             _brokenPasv.IsToggled = profile.EffectiveOptions.BrokenPasv;
             _tlsPolicy.SelectedIndex = (int)profile.TlsPolicy;
+            _proxyType.SelectedIndex = (int)(profile.Proxy?.Type ?? ProxyType.None);
+            _proxyHost.Text = profile.Proxy?.Host ?? "";
+            _proxyPort.Text = profile.Proxy?.Port > 0 ? profile.Proxy.Port.ToString() : "";
+            _proxyUsername.Text = profile.Proxy?.Username ?? "";
+            _proxyPassword.Text = profile.Proxy?.Password ?? "";
+            _proxyDns.IsToggled = profile.Proxy?.ProxyDns ?? true;
+            _proxyData.IsToggled = profile.Proxy?.UseForData ?? true;
         }
         else
         {
             _protocol.SelectedIndex = (int)TransferProtocol.FtpsExplicit;
             _port.Text = "21";
             _tlsPolicy.SelectedIndex = (int)TlsPolicy.Automatic;
+            _proxyType.SelectedIndex = (int)ProxyType.None;
+            _proxyDns.IsToggled = true;
+            _proxyData.IsToggled = true;
         }
         _protocol.SelectedIndexChanged += (_, _) =>
         {
@@ -66,6 +84,8 @@ public sealed class SiteEditorPage : ContentPage
         };
         _tlsPolicy.IsEnabled = (TransferProtocol)Math.Max(0, _protocol.SelectedIndex)
             is TransferProtocol.FtpsExplicit or TransferProtocol.FtpsImplicit;
+        _proxyType.SelectedIndexChanged += (_, _) => UpdateProxyFields();
+        UpdateProxyFields();
         var save = new Button { Text = "Spara" };
         save.Clicked += OnSave;
         Content = new ScrollView
@@ -80,6 +100,35 @@ public sealed class SiteEditorPage : ContentPage
                     new Label
                     {
                         Text = "Automatiskt väljer högsta gemensamma version. TLS 1.0 och 1.1 tillåts aldrig.",
+                        TextColor = Color.FromArgb("#91A2B1"),
+                        FontSize = 12
+                    },
+                    new Label
+                    {
+                        Text = "PROXY PER SITE",
+                        FontAttributes = FontAttributes.Bold,
+                        TextColor = Color.FromArgb("#42C9B4")
+                    },
+                    _proxyType, _proxyHost, _proxyPort, _proxyUsername, _proxyPassword,
+                    new HorizontalStackLayout
+                    {
+                        Children =
+                        {
+                            new Label { Text = "Lös servernamn genom proxyn", VerticalOptions = LayoutOptions.Center },
+                            _proxyDns
+                        }
+                    },
+                    new HorizontalStackLayout
+                    {
+                        Children =
+                        {
+                            new Label { Text = "Använd proxy för PASV/EPSV-data", VerticalOptions = LayoutOptions.Center },
+                            _proxyData
+                        }
+                    },
+                    new Label
+                    {
+                        Text = "Proxylösenord lagras i Android Secure Storage. Aktiv FTP/PORT och SFTP använder inte proxyn.",
                         TextColor = Color.FromArgb("#91A2B1"),
                         FontSize = 12
                     },
@@ -134,6 +183,19 @@ public sealed class SiteEditorPage : ContentPage
             return;
         }
         var protocol = (TransferProtocol)Math.Max(0, _protocol.SelectedIndex);
+        var proxyType = (ProxyType)Math.Max(0, _proxyType.SelectedIndex);
+        if (proxyType != ProxyType.None &&
+            (string.IsNullOrWhiteSpace(_proxyHost.Text) ||
+             !int.TryParse(_proxyPort.Text, out var proxyPort) || proxyPort is < 1 or > 65535))
+        {
+            await DisplayAlert("Proxy", "Ange proxyserver och en giltig proxyport.", "OK");
+            return;
+        }
+        var proxy = proxyType == ProxyType.None
+            ? null
+            : new ProxyConfiguration(proxyType, _proxyHost.Text.Trim(), int.Parse(_proxyPort.Text!),
+                _proxyUsername.Text?.Trim() ?? "", _proxyPassword.Text ?? "",
+                _proxyDns.IsToggled, _proxyData.IsToggled);
         var options = _originalOptions with
         {
             BasePath = string.IsNullOrWhiteSpace(_startPath.Text) ? "/" : _startPath.Text.Trim(),
@@ -143,10 +205,22 @@ public sealed class SiteEditorPage : ContentPage
             _id, _name.Text.Trim(), _host.Text.Trim(), port, _username.Text?.Trim() ?? "",
             protocol, _password.Text ?? "", _invalidCertificate.IsToggled,
             Options: options,
+            Proxy: proxy,
             SshHostKeyFingerprint: _hostKey.Text?.Trim() ?? "",
             TlsPolicy: protocol is TransferProtocol.FtpsExplicit or TransferProtocol.FtpsImplicit
                 ? (TlsPolicy)Math.Max(0, _tlsPolicy.SelectedIndex)
                 : TlsPolicy.Automatic);
         if (Saved is not null) await Saved(profile);
+    }
+
+    private void UpdateProxyFields()
+    {
+        var enabled = (ProxyType)Math.Max(0, _proxyType.SelectedIndex) != ProxyType.None;
+        _proxyHost.IsEnabled = enabled;
+        _proxyPort.IsEnabled = enabled;
+        _proxyUsername.IsEnabled = enabled;
+        _proxyPassword.IsEnabled = enabled;
+        _proxyDns.IsEnabled = enabled;
+        _proxyData.IsEnabled = enabled;
     }
 }

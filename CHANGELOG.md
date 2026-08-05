@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.9.0 — 2026-08-05
+
+- Added FluxFTP-compatible proxy settings per mobile site.
+- Added SOCKS4, SOCKS5 and HTTP CONNECT proxy modes.
+- Added proxy authentication, proxy-side DNS and optional PASV/EPSV data proxying.
+- Moved proxy passwords into Android Secure Storage alongside site passwords.
+- Active FTP/PORT and SFTP remain direct connections, matching the current transport capabilities.
+
 ## 1.8.0 — 2026-08-04
 
 - Ported the mobile-relevant compatibility fixes from FluxFTP 1.0.33 and 1.0.34.
