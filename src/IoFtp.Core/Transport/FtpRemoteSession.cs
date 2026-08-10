@@ -54,6 +54,7 @@ public sealed class FtpRemoteSession : IRemoteSession
             throw new NotSupportedException("SFTP transport is not available yet.");
 
         _profile = profile;
+        _protectData = true;
         // Prefer IPv4 for FTP/FXP. A dual-stack DNS result could otherwise make
         // the control connection IPv6, while PORT/CPSV secure FXP is IPv4-only.
         (_controlClient, var connectedEndpoint) = await ConnectToFirstAddressAsync(profile, cancellationToken);
@@ -73,14 +74,12 @@ public sealed class FtpRemoteSession : IRemoteSession
             if (authResponse.Code is not (234 or 334))
                 authResponse = await CommandAsync("AUTH SSL", cancellationToken);
             EnsureSuccess(authResponse, 234, 334);
+            _writer?.Dispose();
+            _reader?.Dispose();
+            _writer = null;
+            _reader = null;
             await EnableTlsAsync(cancellationToken);
             CreateTextStreams();
-        }
-
-        if (profile.Protocol is TransferProtocol.FtpsExplicit or TransferProtocol.FtpsImplicit)
-        {
-            EnsureSuccess(await CommandAsync("PBSZ 0", cancellationToken), 200);
-            EnsureSuccess(await CommandAsync("PROT P", cancellationToken), 200);
         }
 
         var username = string.IsNullOrWhiteSpace(profile.Username) ? "anonymous" : profile.Username;
@@ -90,6 +89,22 @@ public sealed class FtpRemoteSession : IRemoteSession
             EnsureSuccess(await CommandAsync($"PASS {password}", cancellationToken), 230);
         else
             EnsureSuccess(userResponse, 230);
+
+        // DrFTPD requires login before PBSZ/PROT. glFTPD and ioFTPD accept
+        // this ordering as well. If PROT P is unavailable, keep the encrypted
+        // control channel and explicitly fall back to clear data with PROT C.
+        if (profile.Protocol is TransferProtocol.FtpsExplicit or TransferProtocol.FtpsImplicit)
+        {
+            EnsureSuccess(await CommandAsync("PBSZ 0", cancellationToken), 200);
+            var privateProtection = await CommandAsync("PROT P", cancellationToken);
+            if (privateProtection.Code is >= 200 and < 300)
+                _protectData = true;
+            else
+            {
+                EnsureSuccess(await CommandAsync("PROT C", cancellationToken), 200);
+                _protectData = false;
+            }
+        }
 
         if (profile.EffectiveOptions.ForceBinaryMode)
             EnsureSuccess(await CommandAsync("TYPE I", cancellationToken), 200);
@@ -653,15 +668,21 @@ public sealed class FtpRemoteSession : IRemoteSession
     {
         // EPSV keeps the data connection on the same host as the control connection,
         // avoiding the unusable private addresses many FTP servers advertise in PASV.
-        var extended = await CommandAsync("EPSV", cancellationToken);
-        if (extended.Code == 229)
-            return ParseExtendedPassiveEndpoint(extended.Message, _profile!.Host, _profile.EffectiveOptions.CeprSupported);
+        var profile = _profile ?? throw new InvalidOperationException("The connection profile is unavailable.");
+        // Some older servers fail the complete data operation after an
+        // unsupported EPSV probe. Only use EPSV when FEAT advertises it.
+        if (Capabilities.Contains("EPSV") || profile.EffectiveOptions.CeprSupported)
+        {
+            var extended = await CommandAsync("EPSV", cancellationToken);
+            if (extended.Code == 229)
+                return ParseExtendedPassiveEndpoint(extended.Message, ConnectedHost, profile.EffectiveOptions.CeprSupported);
+        }
 
         var passive = await CommandAsync("PASV", cancellationToken);
         EnsureSuccess(passive, 227);
         var advertised = ParsePassiveEndpoint(passive.Message);
         // When connecting through localhost, never replace it with a server-advertised LAN address.
-        var host = _profile!.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ? _profile.Host : advertised.Host;
+        var host = profile.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ? profile.Host : advertised.Host;
         return (host, advertised.Port);
     }
 

@@ -14,6 +14,7 @@ public partial class MainPage : ContentPage
     private const string DualViewPreference = "fluxftp.dual-view.v1";
     private const string LocalRootPreference = "fluxftp.local-root.v1";
     private readonly SiteStore _sites;
+    private readonly BookmarkStore _bookmarks = new();
     private readonly RemoteBrowserService _remote;
     private readonly ObservableCollection<LocalTransferFile> _localFiles = [];
     private readonly ObservableCollection<RemoteEntryView> _remoteFiles = [];
@@ -25,6 +26,12 @@ public partial class MainPage : ContentPage
     private readonly List<LocalFolderLocation> _localHistory = [];
     private int _localHistoryIndex = -1;
     private bool _openingLocalFolder;
+    private readonly List<string> _remoteHistory = [];
+    private int _remoteHistoryIndex = -1;
+    private BrowseSort _localSort = BrowseSort.Name;
+    private BrowseSort _remoteSort = BrowseSort.Name;
+    private bool _localSortDescending;
+    private bool _remoteSortDescending;
     private string _connectionSecurity = "";
     private readonly Stopwatch _transferTimer = new();
     private long _transferStartBytes;
@@ -40,6 +47,10 @@ public partial class MainPage : ContentPage
         LocalFiles.ItemsSource = _localFiles;
         RemoteFiles.ItemsSource = _remoteFiles;
         _dualView = Preferences.Default.Get(DualViewPreference, false);
+        _localSort = (BrowseSort)Preferences.Default.Get("fluxftp.local-sort.v1", 0);
+        _remoteSort = (BrowseSort)Preferences.Default.Get("fluxftp.remote-sort.v1", 0);
+        _localSortDescending = Preferences.Default.Get("fluxftp.local-sort-desc.v1", false);
+        _remoteSortDescending = Preferences.Default.Get("fluxftp.remote-sort-desc.v1", false);
         ApplyViewMode();
         _ = RestoreLocalFolderAsync();
     }
@@ -134,6 +145,9 @@ public partial class MainPage : ContentPage
                 await _remote.ConnectAsync(connectedProfile, token);
             }
             RemotePath.Text = connectedProfile.EffectiveOptions.BasePath;
+            _remoteHistory.Clear();
+            _remoteHistoryIndex = -1;
+            AddRemoteHistory(RemotePath.Text);
             await RefreshRemoteAsync(token);
             ConnectButton.Text = "Återanslut";
             _connected = true;
@@ -141,12 +155,16 @@ public partial class MainPage : ContentPage
         }, $"Ansluten till {profile.Name}");
     }
 
-    private async void OnRemotePathCompleted(object sender, EventArgs e) =>
+    private async void OnRemotePathCompleted(object sender, EventArgs e)
+    {
+        AddRemoteHistory(RemotePath.Text);
         await RunAsync(RefreshRemoteAsync);
+    }
 
     private async void OnRemoteUp(object sender, EventArgs e)
     {
         RemotePath.Text = ParentPath(RemotePath.Text);
+        AddRemoteHistory(RemotePath.Text);
         await RunAsync(RefreshRemoteAsync);
     }
 
@@ -159,6 +177,93 @@ public partial class MainPage : ContentPage
         }
         RemoteFiles.SelectedItems.Clear();
         RemotePath.Text = entry.FullPath;
+        AddRemoteHistory(RemotePath.Text);
+        await RunAsync(RefreshRemoteAsync);
+    }
+
+    private async void OnRemoteBack(object sender, EventArgs e)
+    {
+        if (_remoteHistoryIndex <= 0) return;
+        RemotePath.Text = _remoteHistory[--_remoteHistoryIndex];
+        await RunAsync(RefreshRemoteAsync);
+    }
+
+    private async void OnRemoteForward(object sender, EventArgs e)
+    {
+        if (_remoteHistoryIndex >= _remoteHistory.Count - 1) return;
+        RemotePath.Text = _remoteHistory[++_remoteHistoryIndex];
+        await RunAsync(RefreshRemoteAsync);
+    }
+
+    private void AddRemoteHistory(string? path)
+    {
+        var normalized = NormalizePath(path);
+        if (_remoteHistoryIndex >= 0 && _remoteHistory[_remoteHistoryIndex] == normalized) return;
+        if (_remoteHistoryIndex < _remoteHistory.Count - 1)
+            _remoteHistory.RemoveRange(_remoteHistoryIndex + 1, _remoteHistory.Count - _remoteHistoryIndex - 1);
+        _remoteHistory.Add(normalized);
+        if (_remoteHistory.Count > 20) _remoteHistory.RemoveAt(0);
+        _remoteHistoryIndex = _remoteHistory.Count - 1;
+    }
+
+    private async void OnSortLocal(object sender, EventArgs e)
+    {
+        var choice = await DisplayActionSheet("Sortera lokalt", "Avbryt", null,
+            "Namn", "Storlek", "Vänd riktning");
+        if (choice == "Namn") _localSort = BrowseSort.Name;
+        else if (choice == "Storlek") _localSort = BrowseSort.Size;
+        else if (choice == "Vänd riktning") _localSortDescending = !_localSortDescending;
+        else return;
+        Preferences.Default.Set("fluxftp.local-sort.v1", (int)_localSort);
+        Preferences.Default.Set("fluxftp.local-sort-desc.v1", _localSortDescending);
+        ApplyLocalSort();
+    }
+
+    private async void OnSortRemote(object sender, EventArgs e)
+    {
+        var choice = await DisplayActionSheet("Sortera server", "Avbryt", null,
+            "Namn", "Storlek", "Ändrad", "Vänd riktning");
+        if (choice == "Namn") _remoteSort = BrowseSort.Name;
+        else if (choice == "Storlek") _remoteSort = BrowseSort.Size;
+        else if (choice == "Ändrad") _remoteSort = BrowseSort.Modified;
+        else if (choice == "Vänd riktning") _remoteSortDescending = !_remoteSortDescending;
+        else return;
+        Preferences.Default.Set("fluxftp.remote-sort.v1", (int)_remoteSort);
+        Preferences.Default.Set("fluxftp.remote-sort-desc.v1", _remoteSortDescending);
+        ApplyRemoteSort();
+    }
+
+    private async void OnBookmarks(object sender, EventArgs e)
+    {
+        if (_selectedProfile is not { } profile) return;
+        var all = (await _bookmarks.LoadAsync()).ToList();
+        var siteBookmarks = all.Where(item => item.SiteId == profile.Id).OrderBy(item => item.Name).ToList();
+        var add = "Spara aktuell mapp…";
+        var remove = "Ta bort bokmärke…";
+        var choices = new List<string> { add };
+        choices.AddRange(siteBookmarks.Select(item => $"★ {item.Name}"));
+        if (siteBookmarks.Count > 0) choices.Add(remove);
+        var selected = await DisplayActionSheet("Bokmärken", "Avbryt", null, choices.ToArray());
+        if (selected == add)
+        {
+            var name = await DisplayPromptAsync("Nytt bokmärke", "Namn", initialValue: RemotePath.Text.Trim('/'));
+            if (string.IsNullOrWhiteSpace(name)) return;
+            all.Add(new SiteBookmark(Guid.NewGuid(), profile.Id, name.Trim(), NormalizePath(RemotePath.Text)));
+            await _bookmarks.SaveAsync(all);
+            return;
+        }
+        if (selected == remove)
+        {
+            var deleteName = await DisplayActionSheet("Ta bort bokmärke", "Avbryt", null,
+                siteBookmarks.Select(item => item.Name).ToArray());
+            var doomed = siteBookmarks.FirstOrDefault(item => item.Name == deleteName);
+            if (doomed is not null) { all.Remove(doomed); await _bookmarks.SaveAsync(all); }
+            return;
+        }
+        var bookmark = siteBookmarks.FirstOrDefault(item => selected == $"★ {item.Name}");
+        if (bookmark is null) return;
+        RemotePath.Text = bookmark.RemotePath;
+        AddRemoteHistory(RemotePath.Text);
         await RunAsync(RefreshRemoteAsync);
     }
 
@@ -262,6 +367,7 @@ public partial class MainPage : ContentPage
         }
         _localFiles.Clear();
         foreach (var entry in entries) _localFiles.Add(entry);
+        ApplyLocalSort();
         LocalPathLabel.Text = folder.DisplayPath;
     }
 
@@ -342,8 +448,45 @@ public partial class MainPage : ContentPage
     {
         var entries = await _remote.ListAsync(NormalizePath(RemotePath.Text), token);
         _remoteFiles.Clear();
-        foreach (var entry in entries.OrderByDescending(x => x.IsDirectory).ThenBy(x => x.Name))
+        foreach (var entry in entries)
             _remoteFiles.Add(new RemoteEntryView(entry));
+        ApplyRemoteSort();
+    }
+
+    private void ApplyLocalSort()
+    {
+        IEnumerable<LocalTransferFile> ordered = (_localSort, _localSortDescending) switch
+        {
+            (BrowseSort.Size, true) => _localFiles.OrderByDescending(item => item.IsDirectory).ThenByDescending(item => item.Size),
+            (BrowseSort.Size, false) => _localFiles.OrderByDescending(item => item.IsDirectory).ThenBy(item => item.Size),
+            (_, true) => _localFiles.OrderByDescending(item => item.IsDirectory)
+                .ThenByDescending(item => item.FileName, StringComparer.CurrentCultureIgnoreCase),
+            _ => _localFiles.OrderByDescending(item => item.IsDirectory)
+                .ThenBy(item => item.FileName, StringComparer.CurrentCultureIgnoreCase)
+        };
+        Replace(_localFiles, ordered.ToArray());
+    }
+
+    private void ApplyRemoteSort()
+    {
+        IEnumerable<RemoteEntryView> ordered = (_remoteSort, _remoteSortDescending) switch
+        {
+            (BrowseSort.Size, true) => _remoteFiles.OrderByDescending(item => item.IsDirectory).ThenByDescending(item => item.Size ?? 0),
+            (BrowseSort.Size, false) => _remoteFiles.OrderByDescending(item => item.IsDirectory).ThenBy(item => item.Size ?? 0),
+            (BrowseSort.Modified, true) => _remoteFiles.OrderByDescending(item => item.IsDirectory).ThenByDescending(item => item.ModifiedAt),
+            (BrowseSort.Modified, false) => _remoteFiles.OrderByDescending(item => item.IsDirectory).ThenBy(item => item.ModifiedAt),
+            (_, true) => _remoteFiles.OrderByDescending(item => item.IsDirectory)
+                .ThenByDescending(item => item.Name, StringComparer.CurrentCultureIgnoreCase),
+            _ => _remoteFiles.OrderByDescending(item => item.IsDirectory)
+                .ThenBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase)
+        };
+        Replace(_remoteFiles, ordered.ToArray());
+    }
+
+    private static void Replace<T>(ObservableCollection<T> target, IReadOnlyList<T> values)
+    {
+        target.Clear();
+        foreach (var value in values) target.Add(value);
     }
 
     private IProgress<long> Progress(long total, string activity)
@@ -554,9 +697,13 @@ public sealed class RemoteEntryView(IoFtp.Core.Abstractions.RemoteEntry entry)
     public string FullPath { get; } = entry.FullPath;
     public bool IsDirectory { get; } = entry.IsDirectory;
     public long? Size { get; } = entry.Size;
+    public DateTimeOffset? ModifiedAt { get; } = entry.ModifiedAt;
     public string Icon => IsDirectory ? "📁" : "📄";
     public string SizeText => IsDirectory ? "Mapp" : Size is long value ? $"{value:N0} byte" : "Fil";
+    public string ModifiedText => ModifiedAt?.LocalDateTime.ToString("yyyy-MM-dd HH:mm") ?? "";
 }
+
+internal enum BrowseSort { Name, Size, Modified }
 
 internal sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
 {

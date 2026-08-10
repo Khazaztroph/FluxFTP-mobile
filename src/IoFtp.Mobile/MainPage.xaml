@@ -44,24 +44,26 @@
                     Clicked="OnToggleViewMode" />
         </Grid>
 
-        <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="5">
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" ColumnSpacing="3">
             <Label Text="Server"
                    FontSize="11"
                    VerticalOptions="Center"
                    TextColor="{StaticResource MutedTextColor}" />
-            <Entry Grid.Column="1"
+            <Button Grid.Column="1" Text="‹" Padding="8,6" FontSize="14" Clicked="OnRemoteBack" />
+            <Button Grid.Column="2" Text="›" Padding="8,6" FontSize="14" Clicked="OnRemoteForward" />
+            <Entry Grid.Column="3"
                    x:Name="RemotePath"
                    Text="/"
                    Placeholder="Fjärrmapp"
                    ReturnType="Go"
                    FontSize="13"
                    Completed="OnRemotePathCompleted" />
-            <Button Grid.Column="2"
+            <Button Grid.Column="4"
                     Text="↑"
                     Padding="12,6"
                     FontSize="16"
                     Clicked="OnRemoteUp" />
-            <Button Grid.Column="3"
+            <Button Grid.Column="5"
                     Text="Öppna"
                     Padding="9,6"
                     FontSize="12"
@@ -73,17 +75,18 @@
               ColumnDefinitions="*,*"
               ColumnSpacing="7">
             <Grid x:Name="LocalPane" RowDefinitions="Auto,Auto,*" RowSpacing="3">
-                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="3">
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="3">
                     <Label Text="LOKALT"
                            FontSize="12"
                            FontAttributes="Bold"
                            VerticalOptions="Center" />
-                    <Button Grid.Column="1"
+                    <Button Grid.Column="1" Text="Sortera" Padding="7,5" FontSize="10" Clicked="OnSortLocal" />
+                    <Button Grid.Column="2"
                             Text="Filer"
                             Padding="8,5"
                             FontSize="11"
                             Clicked="OnPickFiles" />
-                    <Button Grid.Column="2"
+                    <Button Grid.Column="3"
                             Text="Startmapp"
                             Padding="8,5"
                             FontSize="11"
@@ -136,12 +139,14 @@
             <Grid Grid.Column="1"
                   x:Name="RemotePane"
                   RowDefinitions="Auto,*">
-                <Grid ColumnDefinitions="*,Auto">
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                     <Label Text="FJÄRRSERVER"
                            FontSize="12"
                            FontAttributes="Bold"
                            VerticalOptions="Center" />
-                    <Label Grid.Column="1"
+                    <Button Grid.Column="1" Text="Sortera" Padding="7,5" FontSize="10" Clicked="OnSortRemote" />
+                    <Button Grid.Column="2" Text="★" Padding="9,5" FontSize="12" Clicked="OnBookmarks" />
+                    <Label Grid.Column="3"
                            x:Name="ViewModeLabel"
                            Text="SINGEL"
                            FontSize="10"
@@ -170,11 +175,12 @@
                                        FontSize="14"
                                        VerticalOptions="Center"
                                        LineBreakMode="TailTruncation" />
-                                <Label Grid.Column="2"
-                                       Text="{Binding SizeText}"
-                                       FontSize="10"
-                                       TextColor="{StaticResource MutedTextColor}"
-                                       VerticalOptions="Center" />
+                                <VerticalStackLayout Grid.Column="2" Spacing="0" VerticalOptions="Center">
+                                    <Label Text="{Binding SizeText}" FontSize="10"
+                                           TextColor="{StaticResource MutedTextColor}" HorizontalTextAlignment="End" />
+                                    <Label Text="{Binding ModifiedText}" FontSize="8"
+                                           TextColor="{StaticResource MutedTextColor}" HorizontalTextAlignment="End" />
+                                </VerticalStackLayout>
                             </Grid>
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
