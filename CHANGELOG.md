@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.11.0 — 2026-08-11
+
+- Ported the mobile-relevant FTP/FTPS compatibility updates from FluxFTP 1.0.41–1.0.47.
+- DrFTPD FTPS now authenticates before `PBSZ`/`PROT`, with explicit `PROT C` fallback when protected data channels are rejected.
+- Passive transfers skip unsupported `EPSV` probes and use `PASV` directly unless EPSV is advertised.
+- Added Back and Forward history for remote directory navigation.
+- Added per-site remote bookmarks with add, open and delete actions.
+- Added persistent Name, Size and Modified sorting for the remote pane and Name/Size sorting for the local pane.
+- Remote rows now show modification date alongside file size.
+
 ## 1.10.0 — 2026-08-05
 
 - Replaced the flattened Android folder import with a navigable SAF local browser.
