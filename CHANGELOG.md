@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.11.1 — 2026-08-11
+
+- Fixed a native Mono startup crash in the 1.11.0 ARM64 release on Android 13.
+- Disabled Android AOT and managed-code trimming after `mono_class_init_internal` aborted before MAUI startup.
+- Verified cold startup on Redmi Note 11 with existing app data and saved sites preserved.
+
 ## 1.11.0 — 2026-08-11
 
 - Ported the mobile-relevant FTP/FTPS compatibility updates from FluxFTP 1.0.41–1.0.47.
