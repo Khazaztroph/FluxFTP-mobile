@@ -26,12 +26,16 @@
 		<ApplicationId>se.fluxftp.mobile</ApplicationId>
 
 		<!-- Versions -->
-		<ApplicationDisplayVersion>1.11.0</ApplicationDisplayVersion>
-		<ApplicationVersion>16</ApplicationVersion>
+		<ApplicationDisplayVersion>1.11.1</ApplicationDisplayVersion>
+		<ApplicationVersion>17</ApplicationVersion>
 		<RuntimeIdentifier Condition="'$(Configuration)' == 'Release'">android-arm64</RuntimeIdentifier>
 		<AndroidPackageFormat>apk</AndroidPackageFormat>
 		<AndroidUseSharedRuntime>false</AndroidUseSharedRuntime>
 		<EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+		<!-- Mono AOT aborted in mono_class_init_internal on the Android 13 Redmi Note 11.
+		     Keep the verified interpreter/JIT packaging for reliable startup. -->
+		<RunAOTCompilation Condition="'$(Configuration)' == 'Release'">false</RunAOTCompilation>
+		<PublishTrimmed Condition="'$(Configuration)' == 'Release'">false</PublishTrimmed>
 
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">11.0</SupportedOSPlatformVersion>
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">13.1</SupportedOSPlatformVersion>
