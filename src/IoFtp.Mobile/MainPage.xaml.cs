@@ -103,14 +103,42 @@ public partial class MainPage : ContentPage
     {
         if (PaneGrid is null) return;
         LocalPane.IsVisible = _dualView;
-        PaneGrid.ColumnDefinitions[0].Width = _dualView
-            ? new GridLength(1, GridUnitType.Star)
-            : new GridLength(0);
-        PaneGrid.ColumnDefinitions[1].Width = new GridLength(1, GridUnitType.Star);
-        Grid.SetColumn(RemotePane, _dualView ? 1 : 0);
-        Grid.SetColumnSpan(RemotePane, _dualView ? 1 : 2);
+        ApplyResponsivePaneLayout();
         ViewModeButton.Text = _dualView ? "Singelvy" : "Dualvy";
         ViewModeLabel.Text = _dualView ? "DUAL" : "SINGEL";
+    }
+
+    private void OnPageSizeChanged(object? sender, EventArgs e) => ApplyResponsivePaneLayout();
+
+    private void ApplyResponsivePaneLayout()
+    {
+        if (PaneGrid is null || LocalPane is null || RemotePane is null) return;
+        var portrait = Width > 0 && Height > 0 && Width < Height;
+        PaneGrid.ColumnDefinitions.Clear();
+        PaneGrid.RowDefinitions.Clear();
+        if (_dualView && portrait)
+        {
+            PaneGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+            PaneGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
+            PaneGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
+            Grid.SetColumn(LocalPane, 0);
+            Grid.SetRow(LocalPane, 0);
+            Grid.SetColumn(RemotePane, 0);
+            Grid.SetRow(RemotePane, 1);
+            Grid.SetColumnSpan(RemotePane, 1);
+        }
+        else
+        {
+            PaneGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
+            PaneGrid.ColumnDefinitions.Add(new ColumnDefinition(
+                _dualView ? GridLength.Star : new GridLength(0)));
+            PaneGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+            Grid.SetColumn(LocalPane, 0);
+            Grid.SetRow(LocalPane, 0);
+            Grid.SetColumn(RemotePane, _dualView ? 1 : 0);
+            Grid.SetRow(RemotePane, 0);
+            Grid.SetColumnSpan(RemotePane, _dualView ? 1 : 2);
+        }
     }
 
     private void UpdateSelectedSite()
@@ -209,9 +237,10 @@ public partial class MainPage : ContentPage
     private async void OnSortLocal(object sender, EventArgs e)
     {
         var choice = await DisplayActionSheet("Sortera lokalt", "Avbryt", null,
-            "Namn", "Storlek", "Vänd riktning");
+            "Namn", "Storlek", "Ändrad", "Vänd riktning");
         if (choice == "Namn") _localSort = BrowseSort.Name;
         else if (choice == "Storlek") _localSort = BrowseSort.Size;
+        else if (choice == "Ändrad") _localSort = BrowseSort.Modified;
         else if (choice == "Vänd riktning") _localSortDescending = !_localSortDescending;
         else return;
         Preferences.Default.Set("fluxftp.local-sort.v1", (int)_localSort);
@@ -459,6 +488,8 @@ public partial class MainPage : ContentPage
         {
             (BrowseSort.Size, true) => _localFiles.OrderByDescending(item => item.IsDirectory).ThenByDescending(item => item.Size),
             (BrowseSort.Size, false) => _localFiles.OrderByDescending(item => item.IsDirectory).ThenBy(item => item.Size),
+            (BrowseSort.Modified, true) => _localFiles.OrderByDescending(item => item.IsDirectory).ThenByDescending(item => item.ModifiedAt),
+            (BrowseSort.Modified, false) => _localFiles.OrderByDescending(item => item.IsDirectory).ThenBy(item => item.ModifiedAt),
             (_, true) => _localFiles.OrderByDescending(item => item.IsDirectory)
                 .ThenByDescending(item => item.FileName, StringComparer.CurrentCultureIgnoreCase),
             _ => _localFiles.OrderByDescending(item => item.IsDirectory)

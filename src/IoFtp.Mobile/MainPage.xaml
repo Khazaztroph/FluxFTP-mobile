@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="IoFtp.Mobile.MainPage"
+             SizeChanged="OnPageSizeChanged"
              Title="FluxFTP">
     <NavigationPage.TitleView>
         <HorizontalStackLayout Spacing="0" VerticalOptions="Center">
@@ -44,7 +45,8 @@
                     Clicked="OnToggleViewMode" />
         </Grid>
 
-        <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" ColumnSpacing="3">
+        <ScrollView Grid.Row="1" Orientation="Horizontal" HorizontalScrollBarVisibility="Always">
+        <Grid ColumnDefinitions="Auto,Auto,Auto,360,Auto,Auto" ColumnSpacing="3" MinimumWidthRequest="620">
             <Label Text="Server"
                    FontSize="11"
                    VerticalOptions="Center"
@@ -69,13 +71,16 @@
                     FontSize="12"
                     Clicked="OnOpenRemote" />
         </Grid>
+        </ScrollView>
 
         <Grid Grid.Row="2"
               x:Name="PaneGrid"
+              RowDefinitions="*"
               ColumnDefinitions="*,*"
               ColumnSpacing="7">
-            <Grid x:Name="LocalPane" RowDefinitions="Auto,Auto,*" RowSpacing="3">
-                <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="3">
+            <Grid x:Name="LocalPane" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="3">
+                <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Always">
+                <Grid ColumnDefinitions="160,Auto,Auto,Auto" ColumnSpacing="3" MinimumWidthRequest="430">
                     <Label Text="LOKALT"
                            FontSize="12"
                            FontAttributes="Bold"
@@ -92,7 +97,9 @@
                             FontSize="11"
                             Clicked="OnPickFolder" />
                 </Grid>
-                <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,Auto,*" ColumnSpacing="2">
+                </ScrollView>
+                <ScrollView Grid.Row="1" Orientation="Horizontal" HorizontalScrollBarVisibility="Always">
+                <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,260" ColumnSpacing="2" MinimumWidthRequest="470">
                     <Button Text="‹" Padding="8,4" FontSize="14" Clicked="OnLocalBack" />
                     <Button Grid.Column="1" Text="›" Padding="8,4" FontSize="14" Clicked="OnLocalForward" />
                     <Button Grid.Column="2" Text="↑" Padding="8,4" FontSize="14" Clicked="OnLocalUp" />
@@ -105,7 +112,14 @@
                            VerticalOptions="Center"
                            LineBreakMode="HeadTruncation" />
                 </Grid>
-                <CollectionView Grid.Row="2"
+                </ScrollView>
+                <Grid Grid.Row="2" ColumnDefinitions="*,90,120" Padding="7,4"
+                      BackgroundColor="{StaticResource SurfaceRaisedColor}">
+                    <Label Text="Namn" FontSize="10" FontAttributes="Bold" />
+                    <Label Grid.Column="1" Text="Storlek" FontSize="10" FontAttributes="Bold" />
+                    <Label Grid.Column="2" Text="Ändrad" FontSize="10" FontAttributes="Bold" />
+                </Grid>
+                <CollectionView Grid.Row="3"
                                 x:Name="LocalFiles"
                                 SelectionMode="Multiple"
                                 SelectionChanged="OnLocalSelectionChanged">
@@ -117,19 +131,12 @@
                     </CollectionView.EmptyView>
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
-                            <Grid Padding="6,7" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
-                                <Label Text="{Binding Icon}" FontSize="15" VerticalOptions="Center" />
-                                <VerticalStackLayout Grid.Column="1" Spacing="1">
-                                <Label Text="{Binding FileName}"
-                                       FontSize="13"
-                                       LineBreakMode="TailTruncation" />
-                                <Label Text="{Binding DisplayPath}"
-                                       FontSize="9"
-                                       TextColor="{StaticResource MutedTextColor}"
-                                       LineBreakMode="TailTruncation" />
-                                </VerticalStackLayout>
-                                <Label Grid.Column="2" Text="{Binding SizeText}" FontSize="9"
-                                       TextColor="{StaticResource MutedTextColor}" VerticalOptions="Center" />
+                            <Grid Padding="7,6" ColumnDefinitions="*,90,120" ColumnSpacing="5">
+                                <Label Text="{Binding FileName}" FontSize="12" LineBreakMode="TailTruncation" />
+                                <Label Grid.Column="1" Text="{Binding SizeText}" FontSize="10"
+                                       TextColor="{StaticResource MutedTextColor}" />
+                                <Label Grid.Column="2" Text="{Binding ModifiedText}" FontSize="9"
+                                       TextColor="{StaticResource MutedTextColor}" />
                             </Grid>
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
@@ -138,8 +145,9 @@
 
             <Grid Grid.Column="1"
                   x:Name="RemotePane"
-                  RowDefinitions="Auto,*">
-                <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                  RowDefinitions="Auto,Auto,*">
+                <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Always">
+                <Grid ColumnDefinitions="180,Auto,Auto,Auto" MinimumWidthRequest="390">
                     <Label Text="FJÄRRSERVER"
                            FontSize="12"
                            FontAttributes="Bold"
@@ -153,7 +161,14 @@
                            TextColor="{StaticResource MutedTextColor}"
                            VerticalOptions="Center" />
                 </Grid>
-                <CollectionView Grid.Row="1"
+                </ScrollView>
+                <Grid Grid.Row="1" ColumnDefinitions="*,90,120" Padding="7,4"
+                      BackgroundColor="{StaticResource SurfaceRaisedColor}">
+                    <Label Text="Namn" FontSize="10" FontAttributes="Bold" />
+                    <Label Grid.Column="1" Text="Storlek" FontSize="10" FontAttributes="Bold" />
+                    <Label Grid.Column="2" Text="Ändrad" FontSize="10" FontAttributes="Bold" />
+                </Grid>
+                <CollectionView Grid.Row="2"
                                 x:Name="RemoteFiles"
                                 SelectionMode="Multiple">
                     <CollectionView.EmptyView>
@@ -164,23 +179,17 @@
                     </CollectionView.EmptyView>
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
-                            <Grid Padding="7,8"
-                                  ColumnDefinitions="Auto,*,Auto"
+                            <Grid Padding="7,6"
+                                  ColumnDefinitions="*,90,120"
                                   ColumnSpacing="7">
-                                <Label Text="{Binding Icon}"
-                                       FontSize="16"
-                                       VerticalOptions="Center" />
-                                <Label Grid.Column="1"
-                                       Text="{Binding Name}"
-                                       FontSize="14"
+                                <Label Text="{Binding Name}"
+                                       FontSize="12"
                                        VerticalOptions="Center"
                                        LineBreakMode="TailTruncation" />
-                                <VerticalStackLayout Grid.Column="2" Spacing="0" VerticalOptions="Center">
-                                    <Label Text="{Binding SizeText}" FontSize="10"
-                                           TextColor="{StaticResource MutedTextColor}" HorizontalTextAlignment="End" />
-                                    <Label Text="{Binding ModifiedText}" FontSize="8"
-                                           TextColor="{StaticResource MutedTextColor}" HorizontalTextAlignment="End" />
-                                </VerticalStackLayout>
+                                <Label Grid.Column="1" Text="{Binding SizeText}" FontSize="10"
+                                       TextColor="{StaticResource MutedTextColor}" VerticalOptions="Center" />
+                                <Label Grid.Column="2" Text="{Binding ModifiedText}" FontSize="9"
+                                       TextColor="{StaticResource MutedTextColor}" VerticalOptions="Center" />
                             </Grid>
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
