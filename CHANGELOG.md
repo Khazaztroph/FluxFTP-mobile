@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.12.3 — 2026-08-12
+
+- Högerställer SINGEL/DUAL i en egen kolumn så att texten inte krockar med bokmärkesknappen.
+- Tar bort horisontell rullning från fjärrserverns rubrikrad.
+
 ## 1.12.2 — 2026-08-12
 
 - Ersätter den breda fjärrsökvägsraden med en kompakt sökvägsknapp.
