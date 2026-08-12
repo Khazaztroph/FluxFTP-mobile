@@ -141,8 +141,7 @@
             <Grid Grid.Column="1"
                   x:Name="RemotePane"
                   RowDefinitions="Auto,Auto,*">
-                <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Always">
-                <Grid ColumnDefinitions="180,Auto,Auto,Auto" MinimumWidthRequest="390">
+                <Grid ColumnDefinitions="*,Auto,Auto,64" ColumnSpacing="3">
                     <Label Text="FJÄRRSERVER"
                            FontSize="12"
                            FontAttributes="Bold"
@@ -154,9 +153,11 @@
                            Text="SINGEL"
                            FontSize="10"
                            TextColor="{StaticResource MutedTextColor}"
-                           VerticalOptions="Center" />
+                           VerticalOptions="Center"
+                           HorizontalTextAlignment="End"
+                           HorizontalOptions="Fill"
+                           Margin="5,0,2,0" />
                 </Grid>
-                </ScrollView>
                 <Grid Grid.Row="1" ColumnDefinitions="*,90,120" Padding="7,4"
                       BackgroundColor="{StaticResource SurfaceRaisedColor}">
                     <Label Text="Namn" FontSize="10" FontAttributes="Bold" />

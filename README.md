@@ -5,7 +5,10 @@ FluxFTP Mobile is the Android companion to
 and shares its FTP/FTPS transport contracts and site format with the desktop
 application.
 
-## Version 1.12.2
+## Version 1.12.3
+
+Visningsläget **SINGEL/DUAL** ligger högerställt i en egen kolumn och överlappar inte
+längre bokmärkesknappen.
 
 Fjärrnavigeringen använder nu en kompakt sökvägsknapp, så att navigeringsknapparna och
 **Öppna** alltid ryms på små mobilskärmar. Tryck på sökvägsknappen för att skriva in en
