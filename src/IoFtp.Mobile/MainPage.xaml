@@ -45,33 +45,28 @@
                     Clicked="OnToggleViewMode" />
         </Grid>
 
-        <ScrollView Grid.Row="1" Orientation="Horizontal" HorizontalScrollBarVisibility="Always">
-        <Grid ColumnDefinitions="Auto,Auto,Auto,360,Auto,Auto" ColumnSpacing="3" MinimumWidthRequest="620">
-            <Label Text="Server"
-                   FontSize="11"
-                   VerticalOptions="Center"
-                   TextColor="{StaticResource MutedTextColor}" />
-            <Button Grid.Column="1" Text="‹" Padding="8,6" FontSize="14" Clicked="OnRemoteBack" />
-            <Button Grid.Column="2" Text="›" Padding="8,6" FontSize="14" Clicked="OnRemoteForward" />
-            <Entry Grid.Column="3"
-                   x:Name="RemotePath"
-                   Text="/"
-                   Placeholder="Fjärrmapp"
-                   ReturnType="Go"
-                   FontSize="13"
-                   Completed="OnRemotePathCompleted" />
-            <Button Grid.Column="4"
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="3">
+            <Button x:Name="RemotePath"
+                    Text="/"
+                    SemanticProperties.Description="Fjärrmapp och serversökväg"
+                    Padding="9,6"
+                    FontSize="12"
+                    HorizontalOptions="Fill"
+                    LineBreakMode="MiddleTruncation"
+                    Clicked="OnChooseRemotePath" />
+            <Button Grid.Column="1" Text="‹" Padding="9,6" FontSize="14" Clicked="OnRemoteBack" />
+            <Button Grid.Column="2" Text="›" Padding="9,6" FontSize="14" Clicked="OnRemoteForward" />
+            <Button Grid.Column="3"
                     Text="↑"
-                    Padding="12,6"
+                    Padding="10,6"
                     FontSize="16"
                     Clicked="OnRemoteUp" />
-            <Button Grid.Column="5"
+            <Button Grid.Column="4"
                     Text="Öppna"
                     Padding="9,6"
                     FontSize="12"
                     Clicked="OnOpenRemote" />
         </Grid>
-        </ScrollView>
 
         <Grid Grid.Row="2"
               x:Name="PaneGrid"

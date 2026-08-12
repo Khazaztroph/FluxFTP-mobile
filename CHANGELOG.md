@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.12.2 — 2026-08-12
+
+- Ersätter den breda fjärrsökvägsraden med en kompakt sökvägsknapp.
+- Håller bakåt, framåt, upp och Öppna synliga utan horisontell rullning på små skärmar.
+- Ett tryck på sökvägsknappen öppnar dialogen för att ange fjärrmapp.
+- ioFTPD-genvägar som rapporteras som `slink` via MLSD visas och öppnas som mappar.
+
 ## 1.12.1 — 2026-08-12
 
 - Added persistent `Folders first` and `Files first` grouping choices to both sort menus.
