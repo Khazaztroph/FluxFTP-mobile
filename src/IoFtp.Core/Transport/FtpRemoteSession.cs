@@ -631,10 +631,16 @@ public sealed class FtpRemoteSession : IRemoteSession
         var type = facts.GetValueOrDefault("type", "file");
         if (type.Equals("cdir", StringComparison.OrdinalIgnoreCase) || type.Equals("pdir", StringComparison.OrdinalIgnoreCase)) return null;
         var directory = type.Equals("dir", StringComparison.OrdinalIgnoreCase);
-        long? size = !directory && long.TryParse(facts.GetValueOrDefault("size"), out var bytes) ? bytes : null;
+        var symbolicLink = type.Contains("slink", StringComparison.OrdinalIgnoreCase);
+        var linkTarget = symbolicLink && type.Contains(':')
+            ? type[(type.IndexOf(':') + 1)..]
+            : null;
+        long? size = !directory && !symbolicLink &&
+            long.TryParse(facts.GetValueOrDefault("size"), out var bytes) ? bytes : null;
         DateTimeOffset? modified = DateTimeOffset.TryParseExact(facts.GetValueOrDefault("modify"), "yyyyMMddHHmmss",
             CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var timestamp) ? timestamp : null;
-        return new(name, Combine(parent, name), directory, size, modified, facts.GetValueOrDefault("perm", type));
+        return new(name, Combine(parent, name), directory || symbolicLink, size, modified,
+            facts.GetValueOrDefault("perm", type), symbolicLink, linkTarget);
     }
 
     private static IReadOnlyList<RemoteEntry> ParseStatListing(string path, string response)

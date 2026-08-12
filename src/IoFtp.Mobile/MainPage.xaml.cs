@@ -187,8 +187,16 @@ public partial class MainPage : ContentPage
         }, $"Ansluten till {profile.Name}");
     }
 
-    private async void OnRemotePathCompleted(object sender, EventArgs e)
+    private async void OnChooseRemotePath(object sender, EventArgs e)
     {
+        var currentPath = NormalizePath(RemotePath.Text);
+        var selectedPath = await DisplayPromptAsync(
+            "Fjärrmapp",
+            "Ange sökväg på servern",
+            initialValue: currentPath,
+            keyboard: Keyboard.Text);
+        if (string.IsNullOrWhiteSpace(selectedPath)) return;
+        RemotePath.Text = NormalizePath(selectedPath);
         AddRemoteHistory(RemotePath.Text);
         await RunAsync(RefreshRemoteAsync);
     }
