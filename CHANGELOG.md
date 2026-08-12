@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.12.0 — 2026-08-12
+
+- Reworked local and remote file rows into compact FluxFTP-style Name, Size and Modified columns.
+- Added local modification timestamps and sorting by actual modification time.
+- Made navigation and pane toolbars horizontally scrollable on narrow screens.
+- Dual view now stacks full-width local and remote panes in portrait and uses side-by-side panes in landscape.
+- Both file panes remain independently vertically scrollable in either orientation.
+
 ## 1.11.1 — 2026-08-11
 
 - Fixed a native Mono startup crash in the 1.11.0 ARM64 release on Android 13.

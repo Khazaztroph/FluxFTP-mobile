@@ -16,11 +16,13 @@ public sealed record LocalTransferFile(
     string DisplayPath,
     long Size,
     Func<Task<Stream>>? OpenReadAsync,
-    LocalFolderLocation? Folder = null)
+    LocalFolderLocation? Folder = null,
+    DateTimeOffset? ModifiedAt = null)
 {
     public bool IsDirectory => Folder is not null;
     public string Icon => IsDirectory ? "📁" : "📄";
     public string SizeText => IsDirectory ? "Mapp" : FormatSize(Size);
+    public string ModifiedText => ModifiedAt?.LocalDateTime.ToString("yyyy-MM-dd HH:mm") ?? "";
 
     private static string FormatSize(long bytes)
     {
@@ -113,7 +115,8 @@ public static class AndroidFolderPicker
             DocumentsContract.Document.ColumnDocumentId,
             DocumentsContract.Document.ColumnDisplayName,
             DocumentsContract.Document.ColumnMimeType,
-            DocumentsContract.Document.ColumnSize
+            DocumentsContract.Document.ColumnSize,
+            DocumentsContract.Document.ColumnLastModified
         ];
         using var cursor = resolver.Query(childrenUri!, projection, null, null, null);
         if (cursor is null) return [];
@@ -122,6 +125,7 @@ public static class AndroidFolderPicker
         var nameIndex = cursor.GetColumnIndex(projection[1]);
         var mimeIndex = cursor.GetColumnIndex(projection[2]);
         var sizeIndex = cursor.GetColumnIndex(projection[3]);
+        var modifiedIndex = cursor.GetColumnIndex(projection[4]);
         while (cursor.MoveToNext())
         {
             token.ThrowIfCancellationRequested();
@@ -130,17 +134,20 @@ public static class AndroidFolderPicker
             var name = cursor.GetString(nameIndex) ?? "fil";
             var mime = cursor.GetString(mimeIndex);
             var display = $"{folder.DisplayPath}/{name}";
+            DateTimeOffset? modified = cursor.IsNull(modifiedIndex)
+                ? null
+                : DateTimeOffset.FromUnixTimeMilliseconds(cursor.GetLong(modifiedIndex));
             if (mime == DocumentsContract.Document.MimeTypeDir)
             {
                 var childFolder = new LocalFolderLocation(folder.TreeUri, id, name, display);
-                files.Add(new LocalTransferFile(name, name, display, 0, null, childFolder));
+                files.Add(new LocalTransferFile(name, name, display, 0, null, childFolder, modified));
                 continue;
             }
             var documentUri = DocumentsContract.BuildDocumentUriUsingTree(treeUri, id);
             var size = cursor.IsNull(sizeIndex) ? 0 : cursor.GetLong(sizeIndex);
             files.Add(new LocalTransferFile(name, name, display, size,
                 () => Task.FromResult<Stream>(resolver.OpenInputStream(documentUri!) ??
-                    throw new IOException($"Kan inte öppna {display}."))));
+                    throw new IOException($"Kan inte öppna {display}.")), ModifiedAt: modified));
         }
         return files.OrderByDescending(file => file.IsDirectory)
             .ThenBy(file => file.FileName, StringComparer.CurrentCultureIgnoreCase).ToArray();
