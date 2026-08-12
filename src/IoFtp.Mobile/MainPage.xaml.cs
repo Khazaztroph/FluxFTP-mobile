@@ -32,6 +32,8 @@ public partial class MainPage : ContentPage
     private BrowseSort _remoteSort = BrowseSort.Name;
     private bool _localSortDescending;
     private bool _remoteSortDescending;
+    private bool _localFoldersFirst = true;
+    private bool _remoteFoldersFirst = true;
     private string _connectionSecurity = "";
     private readonly Stopwatch _transferTimer = new();
     private long _transferStartBytes;
@@ -51,6 +53,8 @@ public partial class MainPage : ContentPage
         _remoteSort = (BrowseSort)Preferences.Default.Get("fluxftp.remote-sort.v1", 0);
         _localSortDescending = Preferences.Default.Get("fluxftp.local-sort-desc.v1", false);
         _remoteSortDescending = Preferences.Default.Get("fluxftp.remote-sort-desc.v1", false);
+        _localFoldersFirst = Preferences.Default.Get("fluxftp.local-folders-first.v1", true);
+        _remoteFoldersFirst = Preferences.Default.Get("fluxftp.remote-folders-first.v1", true);
         ApplyViewMode();
         _ = RestoreLocalFolderAsync();
     }
@@ -237,28 +241,34 @@ public partial class MainPage : ContentPage
     private async void OnSortLocal(object sender, EventArgs e)
     {
         var choice = await DisplayActionSheet("Sortera lokalt", "Avbryt", null,
-            "Namn", "Storlek", "Ändrad", "Vänd riktning");
+            "Namn", "Storlek", "Ändrad", "Mappar först", "Filer först", "Vänd riktning");
         if (choice == "Namn") _localSort = BrowseSort.Name;
         else if (choice == "Storlek") _localSort = BrowseSort.Size;
         else if (choice == "Ändrad") _localSort = BrowseSort.Modified;
+        else if (choice == "Mappar först") _localFoldersFirst = true;
+        else if (choice == "Filer först") _localFoldersFirst = false;
         else if (choice == "Vänd riktning") _localSortDescending = !_localSortDescending;
         else return;
         Preferences.Default.Set("fluxftp.local-sort.v1", (int)_localSort);
         Preferences.Default.Set("fluxftp.local-sort-desc.v1", _localSortDescending);
+        Preferences.Default.Set("fluxftp.local-folders-first.v1", _localFoldersFirst);
         ApplyLocalSort();
     }
 
     private async void OnSortRemote(object sender, EventArgs e)
     {
         var choice = await DisplayActionSheet("Sortera server", "Avbryt", null,
-            "Namn", "Storlek", "Ändrad", "Vänd riktning");
+            "Namn", "Storlek", "Ändrad", "Mappar först", "Filer först", "Vänd riktning");
         if (choice == "Namn") _remoteSort = BrowseSort.Name;
         else if (choice == "Storlek") _remoteSort = BrowseSort.Size;
         else if (choice == "Ändrad") _remoteSort = BrowseSort.Modified;
+        else if (choice == "Mappar först") _remoteFoldersFirst = true;
+        else if (choice == "Filer först") _remoteFoldersFirst = false;
         else if (choice == "Vänd riktning") _remoteSortDescending = !_remoteSortDescending;
         else return;
         Preferences.Default.Set("fluxftp.remote-sort.v1", (int)_remoteSort);
         Preferences.Default.Set("fluxftp.remote-sort-desc.v1", _remoteSortDescending);
+        Preferences.Default.Set("fluxftp.remote-folders-first.v1", _remoteFoldersFirst);
         ApplyRemoteSort();
     }
 
@@ -484,33 +494,37 @@ public partial class MainPage : ContentPage
 
     private void ApplyLocalSort()
     {
-        IEnumerable<LocalTransferFile> ordered = (_localSort, _localSortDescending) switch
+        IEnumerable<LocalTransferFile> SortGroup(IEnumerable<LocalTransferFile> group) =>
+            (_localSort, _localSortDescending) switch
         {
-            (BrowseSort.Size, true) => _localFiles.OrderByDescending(item => item.IsDirectory).ThenByDescending(item => item.Size),
-            (BrowseSort.Size, false) => _localFiles.OrderByDescending(item => item.IsDirectory).ThenBy(item => item.Size),
-            (BrowseSort.Modified, true) => _localFiles.OrderByDescending(item => item.IsDirectory).ThenByDescending(item => item.ModifiedAt),
-            (BrowseSort.Modified, false) => _localFiles.OrderByDescending(item => item.IsDirectory).ThenBy(item => item.ModifiedAt),
-            (_, true) => _localFiles.OrderByDescending(item => item.IsDirectory)
-                .ThenByDescending(item => item.FileName, StringComparer.CurrentCultureIgnoreCase),
-            _ => _localFiles.OrderByDescending(item => item.IsDirectory)
-                .ThenBy(item => item.FileName, StringComparer.CurrentCultureIgnoreCase)
+            (BrowseSort.Size, true) => group.OrderByDescending(item => item.Size),
+            (BrowseSort.Size, false) => group.OrderBy(item => item.Size),
+            (BrowseSort.Modified, true) => group.OrderByDescending(item => item.ModifiedAt),
+            (BrowseSort.Modified, false) => group.OrderBy(item => item.ModifiedAt),
+            (_, true) => group.OrderByDescending(item => item.FileName, StringComparer.CurrentCultureIgnoreCase),
+            _ => group.OrderBy(item => item.FileName, StringComparer.CurrentCultureIgnoreCase)
         };
+        var folders = SortGroup(_localFiles.Where(item => item.IsDirectory));
+        var files = SortGroup(_localFiles.Where(item => !item.IsDirectory));
+        var ordered = _localFoldersFirst ? folders.Concat(files) : files.Concat(folders);
         Replace(_localFiles, ordered.ToArray());
     }
 
     private void ApplyRemoteSort()
     {
-        IEnumerable<RemoteEntryView> ordered = (_remoteSort, _remoteSortDescending) switch
+        IEnumerable<RemoteEntryView> SortGroup(IEnumerable<RemoteEntryView> group) =>
+            (_remoteSort, _remoteSortDescending) switch
         {
-            (BrowseSort.Size, true) => _remoteFiles.OrderByDescending(item => item.IsDirectory).ThenByDescending(item => item.Size ?? 0),
-            (BrowseSort.Size, false) => _remoteFiles.OrderByDescending(item => item.IsDirectory).ThenBy(item => item.Size ?? 0),
-            (BrowseSort.Modified, true) => _remoteFiles.OrderByDescending(item => item.IsDirectory).ThenByDescending(item => item.ModifiedAt),
-            (BrowseSort.Modified, false) => _remoteFiles.OrderByDescending(item => item.IsDirectory).ThenBy(item => item.ModifiedAt),
-            (_, true) => _remoteFiles.OrderByDescending(item => item.IsDirectory)
-                .ThenByDescending(item => item.Name, StringComparer.CurrentCultureIgnoreCase),
-            _ => _remoteFiles.OrderByDescending(item => item.IsDirectory)
-                .ThenBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase)
+            (BrowseSort.Size, true) => group.OrderByDescending(item => item.Size ?? 0),
+            (BrowseSort.Size, false) => group.OrderBy(item => item.Size ?? 0),
+            (BrowseSort.Modified, true) => group.OrderByDescending(item => item.ModifiedAt),
+            (BrowseSort.Modified, false) => group.OrderBy(item => item.ModifiedAt),
+            (_, true) => group.OrderByDescending(item => item.Name, StringComparer.CurrentCultureIgnoreCase),
+            _ => group.OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase)
         };
+        var folders = SortGroup(_remoteFiles.Where(item => item.IsDirectory));
+        var files = SortGroup(_remoteFiles.Where(item => !item.IsDirectory));
+        var ordered = _remoteFoldersFirst ? folders.Concat(files) : files.Concat(folders);
         Replace(_remoteFiles, ordered.ToArray());
     }
 

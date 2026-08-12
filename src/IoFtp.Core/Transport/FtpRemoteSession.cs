@@ -825,10 +825,23 @@ public sealed class FtpRemoteSession : IRemoteSession
         var unix = line.Split(' ', 9, StringSplitOptions.RemoveEmptyEntries);
         if (unix.Length >= 9 && unix[0].Length > 0 && unix[0][0] is 'd' or '-' or 'l')
         {
-            var name = unix[8]; if (name is "." or "..") return null;
+            var symbolicLink = unix[0][0] == 'l';
+            var displayedName = unix[8];
+            string? linkTarget = null;
+            if (symbolicLink)
+            {
+                var arrow = displayedName.IndexOf(" -> ", StringComparison.Ordinal);
+                if (arrow >= 0)
+                {
+                    linkTarget = displayedName[(arrow + 4)..].Trim();
+                    displayedName = displayedName[..arrow].TrimEnd();
+                }
+            }
+            var name = displayedName; if (name is "." or ".." || name.Length == 0) return null;
             long? size = long.TryParse(unix[4], out var bytes) ? bytes : null;
             var unixModified = ParseUnixModified(unix[5], unix[6], unix[7]);
-            return new(name, Combine(parent, name), unix[0][0] == 'd', size, unixModified, unix[0]);
+            return new(name, Combine(parent, name), unix[0][0] == 'd' || symbolicLink,
+                size, unixModified, unix[0], symbolicLink, linkTarget);
         }
         var windows = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (windows.Length >= 4 && DateTimeOffset.TryParse($"{windows[0]} {windows[1]}", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var modified))

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.12.1 — 2026-08-12
+
+- Added persistent `Folders first` and `Files first` grouping choices to both sort menus.
+- Fixed Unix FTP symbolic links such as `!Today_*` shortcuts being displayed and sorted as ordinary files.
+- Symbolic-link targets are removed from display names and the links can be opened as directories.
+
 ## 1.12.0 — 2026-08-12
 
 - Reworked local and remote file rows into compact FluxFTP-style Name, Size and Modified columns.
